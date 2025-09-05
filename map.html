@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쉿플레이스 - 서울시 실시간 인구 현황</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 120px);
+        }
+        
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .place-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .place-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+        
+        .place-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .place-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .crowd-level {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .crowd-0 { background: #d4edda; color: #155724; }
+        .crowd-1 { background: #fff3cd; color: #856404; }
+        .crowd-2 { background: #f8d7da; color: #721c24; }
+        
+        .error {
+            color: #dc3545;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤫 쉿플레이스</h1>
+        <p>서울시 실시간 인구 현황 및 조용한 장소 추천</p>
+    </div>
+    
+    <div class="container">
+        <div id="map"></div>
+        <div class="sidebar">
+            <div class="stats">
+                <h3>📊 현황 요약</h3>
+                <div class="stat-item">
+                    <span>총 지역 수:</span>
+                    <span id="totalCount">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>평균 인구:</span>
+                    <span id="avgPopulation">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>최종 업데이트:</span>
+                    <span id="lastUpdate">-</span>
+                </div>
+            </div>
+            
+            <div id="placesList">
+                <div class="loading">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 지도 초기화 (서울시 중심)
+        const map = L.map('map').setView([37.5665, 126.9780], 11);
+        
+        // 타일 레이어 추가
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        let markers = [];
+        let placesData = [];
+        
+        // 혼잡도별 색상 및 아이콘
+        function getMarkerColor(crowdLevel) {
+            switch(crowdLevel) {
+                case 0: return '#28a745'; // 초록 (한적함)
+                case 1: return '#ffc107'; // 노랑 (보통)
+                case 2: return '#dc3545'; // 빨강 (혼잡)
+                default: return '#6c757d';
+            }
+        }
+        
+        function getCrowdText(crowdLevel) {
+            switch(crowdLevel) {
+                case 0: return '한적함';
+                case 1: return '보통';
+                case 2: return '혼잡';
+                default: return '알 수 없음';
+            }
+        }
+        
+        // 커스텀 마커 생성
+        function createMarker(place) {
+            const color = getMarkerColor(place.crowdLevel);
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    background-color: ${color};
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 10px;
+                ">${place.crowdLevel}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            const marker = L.marker([place.lat, place.lng], { icon })
+                .bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h4 style="margin: 0 0 10px 0;">${place.name}</h4>
+                        <p><strong>인구:</strong> ${place.population.toLocaleString()}명</p>
+                        <p><strong>혼잡도:</strong> <span class="crowd-level crowd-${place.crowdLevel}">${getCrowdText(place.crowdLevel)}</span></p>
+                        <p><strong>추천:</strong> ${place.walkingRecommendation}</p>
+                        <p style="font-size: 0.8em; color: #666; margin-top: 10px;">
+                            업데이트: ${new Date(place.lastUpdated).toLocaleString('ko-KR')}
+                        </p>
+                    </div>
+                `);
+            
+            return marker;
+        }
+        
+        // 사이드바 업데이트
+        function updateSidebar(data) {
+            const totalCount = data.length;
+            const avgPopulation = Math.round(data.reduce((sum, place) => sum + place.population, 0) / totalCount);
+            const lastUpdate = data.length > 0 ? new Date(data[0].lastUpdated).toLocaleString('ko-KR') : '-';
+            
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('avgPopulation').textContent = avgPopulation.toLocaleString() + '명';
+            document.getElementById('lastUpdate').textContent = lastUpdate;
+            
+            // 장소 목록 생성
+            const placesList = document.getElementById('placesList');
+            placesList.innerHTML = data
+                .sort((a, b) => a.crowdLevel - b.crowdLevel || a.population - b.population)
+                .map(place => `
+                    <div class="place-item" onclick="focusPlace('${place.place_id}')">
+                        <div class="place-name">${place.name}</div>
+                        <div class="place-info">
+                            인구: ${place.population.toLocaleString()}명 | 
+                            <span class="crowd-level crowd-${place.crowdLevel}">${getCrowdText(place.crowdLevel)}</span>
+                        </div>
+                        <div class="place-info" style="margin-top: 5px; font-style: italic;">
+                            ${place.walkingRecommendation}
+                        </div>
+                    </div>
+                `).join('');
+        }
+        
+        // 특정 장소로 지도 이동
+        function focusPlace(placeId) {
+            const place = placesData.find(p => p.place_id === placeId);
+            if (place) {
+                map.setView([place.lat, place.lng], 15);
+                // 해당 마커의 팝업 열기
+                markers.forEach(marker => {
+                    if (marker.getLatLng().lat === place.lat && marker.getLatLng().lng === place.lng) {
+                        marker.openPopup();
+                    }
+                });
+            }
+        }
+        
+        // API 데이터 로드
+        async function loadPlacesData() {
+            try {
+                const response = await fetch('https://48hywqoyra.execute-api.us-east-1.amazonaws.com/prod/population?limit=100');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                placesData = data;
+                
+                // 기존 마커 제거
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+                
+                // 새 마커 추가
+                data.forEach(place => {
+                    const marker = createMarker(place);
+                    marker.addTo(map);
+                    markers.push(marker);
+                });
+                
+                // 사이드바 업데이트
+                updateSidebar(data);
+                
+                console.log(`${data.length}개 장소 데이터 로드 완료`);
+                
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                document.getElementById('placesList').innerHTML = `
+                    <div class="error">
+                        데이터를 불러올 수 없습니다.<br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 페이지 로드 시 데이터 로드
+        loadPlacesData();
+        
+        // 5분마다 데이터 새로고침
+        setInterval(loadPlacesData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

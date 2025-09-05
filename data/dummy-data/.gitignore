@@ -1,0 +1,8 @@
+# Dummy data JSON files
+*-dummy-data.json
+
+# Node modules
+node_modules/
+
+# Logs
+*.log

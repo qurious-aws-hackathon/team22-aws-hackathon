@@ -1,0 +1,15 @@
+{
+  "name": "shitplace-dummy-data",
+  "version": "1.0.0",
+  "description": "Dummy data generation scripts for ShitPlace project",
+  "scripts": {
+    "generate-users": "node generate-users.js",
+    "generate-spots": "node generate-spots.js",
+    "generate-comments": "node generate-comments.js",
+    "generate-all": "npm run generate-users && npm run generate-spots && npm run generate-comments"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1691.0",
+    "uuid": "^9.0.0"
+  }
+}
