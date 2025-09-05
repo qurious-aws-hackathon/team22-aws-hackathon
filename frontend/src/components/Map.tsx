@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
 import PinRegistrationModal from './PinRegistrationModal';
+import PlaceDetailPanel from './PlaceDetailPanel';
 import Alert from './Alert';
-import Loading from './Loading';
 import PlacePopulation from './Map/PlacePopulation';
 import { RealtimePopulationData } from '../api/models/population';
-import { useAlert } from '../hooks/useAlert';
-import { useLoading } from '../hooks/useLoading';
+import { useLoading } from '../contexts/LoadingContext';
 
 interface MapProps {
   places: Spot[];
@@ -44,7 +43,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   });
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalData, setPinModalData] = useState({ lat: 0, lng: 0 });
-  const [isRegistering, setIsRegistering] = useState(false);
   const [alert, setAlert] = useState<{
     isOpen: boolean;
     type: 'success' | 'error';
@@ -62,6 +60,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const closeAlert = () => {
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
+
+  const { withLoading } = useLoading();
 
   useEffect(() => {
     initializeMap();
@@ -94,12 +94,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   useEffect(() => {
     if (selectedSpot && mapInstance.current) {
-      moveToSpot(selectedSpot);
-      
-      // 약간의 지연 후 InfoWindow 표시 (지도 이동 완료 후)
-      setTimeout(() => {
-        showInfoWindowForPlace(selectedSpot);
-      }, 500);
+      // 해당 마커 찾기
+      const markerIndex = markersPlacesRef.current.findIndex(p => p.id === selectedSpot.id);
+      if (markerIndex !== -1 && markersRef.current[markerIndex]) {
+        const targetMarker = markersRef.current[markerIndex];
+        showInfoWindow(targetMarker, selectedSpot);
+      }
     }
   }, [selectedSpot]);
 
@@ -237,117 +237,208 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const showInfoWindow = (marker: any, place: Spot) => {
-    // 기존 InfoWindow 닫기
+    // 기존 오버레이 제거 (중복 방지)
     if (infoWindowRef.current) {
-      infoWindowRef.current.close();
+      infoWindowRef.current.setMap(null);
+      infoWindowRef.current = null;
     }
 
-    // InfoWindow 내용 생성
-    const content = `
-      <div style="
-        padding: 16px;
-        min-width: 280px;
-        max-width: 320px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        line-height: 1.4;
-      ">
-        <div style="
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 12px;
-        ">
-          <h3 style="
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            flex: 1;
-            padding-right: 8px;
-          ">${place.name}</h3>
-          <button onclick="closeInfoWindow()" style="
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            color: #666;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          ">✕</button>
-        </div>
-        
-        <div style="
-          display: inline-block;
-          background: ${place.quiet_rating >= 80 ? '#4CAF50' : place.quiet_rating >= 60 ? '#FF9800' : '#F44336'};
-          color: white;
-          padding: 4px 12px;
-          border-radius: 16px;
-          font-size: 14px;
-          font-weight: 500;
-          margin-bottom: 12px;
-        ">
-          ${place.quiet_rating >= 80 ? '🤫' : place.quiet_rating >= 60 ? '😐' : '😰'} ${place.quiet_rating}점
-        </div>
-        
-        <div style="
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          margin-bottom: 12px;
-          font-size: 14px;
-        ">
-          <div>
-            <span style="color: #666;">👍 좋아요</span>
-            <span style="font-weight: 500; margin-left: 4px;">${place.like_count || 0}</span>
-          </div>
-          <div>
-            <span style="color: #666;">👎 싫어요</span>
-            <span style="font-weight: 500; margin-left: 4px;">${place.dislike_count || 0}</span>
-          </div>
-          <div>
-            <span style="color: #666;">🔊 소음도</span>
-            <span style="font-weight: 500; margin-left: 4px;">${place.noise_level}dB</span>
-          </div>
-          <div>
-            <span style="color: #666;">⭐ 평점</span>
-            <span style="font-weight: 500; margin-left: 4px;">${place.rating}/5</span>
-          </div>
-        </div>
-        
-        ${place.description ? `
-          <div style="
-            font-size: 14px;
-            color: #666;
-            line-height: 1.5;
-            border-top: 1px solid #eee;
-            padding-top: 12px;
-          ">
-            ${place.description}
-          </div>
-        ` : ''}
-      </div>
-    `;
+    // 이미 같은 장소의 팝업이 열려있다면 닫기만 하고 리턴
+    if (infoWindowRef.current && infoWindowRef.current.placeId === place.id) {
+      return;
+    }
 
-    // InfoWindow 생성
-    infoWindowRef.current = new (window as any).kakao.maps.InfoWindow({
-      content: content,
-      removable: false
-    });
+    // 지도 이동 (팝업이 중앙에 오도록 조정)
+    const moveLatLng = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
+    
+    // 팝업이 화면 중앙에 오도록 마커보다 위쪽으로 지도 중심 이동
+    const projection = mapInstance.current.getProjection();
+    const point = projection.pointFromCoords(moveLatLng);
+    
+    // 팝업 높이만큼 위쪽으로 이동 (약 150px)
+    const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y - 150);
+    const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+    
+    mapInstance.current.setCenter(adjustedLatLng);
+    mapInstance.current.setLevel(3);
 
-    // InfoWindow 표시
-    infoWindowRef.current.open(mapInstance.current, marker);
-
-    // 전역 함수로 닫기 기능 제공
-    (window as any).closeInfoWindow = () => {
+    // 오버레이 생성
+    setTimeout(() => {
+      // 다시 한번 중복 체크
       if (infoWindowRef.current) {
-        infoWindowRef.current.close();
+        infoWindowRef.current.setMap(null);
         infoWindowRef.current = null;
       }
-    };
+
+      const overlayContent = document.createElement('div');
+      overlayContent.innerHTML = `
+        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; max-height: 400px; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">장소 상세</h3>
+            <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">✕</button>
+          </div>
+          
+          <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #333;">${place.name}</h2>
+          
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button id="like-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
+              👍 ${place.like_count || 0}
+            </button>
+            <button id="dislike-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
+              👎 ${place.dislike_count || 0}
+            </button>
+            <span style="padding: 8px 12px; background: #667eea; border-radius: 20px; color: white; font-size: 14px;">
+              🔊 ${place.noise_level}dB ${place.is_noise_recorded ? '⭐' : ''}
+            </span>
+          </div>
+          
+          ${place.description ? `<div style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #555; margin-bottom: 16px;">${place.description}</div>` : ''}
+          
+          <div>
+            <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #333;">댓글</h4>
+            <div style="margin-bottom: 12px;">
+              <input id="nickname-input" type="text" placeholder="닉네임" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 8px; box-sizing: border-box;">
+              <div style="display: flex; gap: 8px;">
+                <input id="comment-input" type="text" placeholder="댓글을 입력하세요..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                <button id="comment-btn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer; font-size: 14px;">등록</button>
+              </div>
+            </div>
+            <div id="comments-list" style="border: 1px solid #eee; border-radius: 8px; max-height: 150px; overflow-y: auto; padding: 12px; font-size: 14px; color: #666;">
+              댓글을 불러오는 중...
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 팝업 이벤트 전파 차단 (지도 조작 가능하게 함)
+      overlayContent.addEventListener('mousedown', (e) => e.stopPropagation());
+      overlayContent.addEventListener('mousemove', (e) => e.stopPropagation());
+      overlayContent.addEventListener('mouseup', (e) => e.stopPropagation());
+      overlayContent.addEventListener('click', (e) => e.stopPropagation());
+      overlayContent.addEventListener('dblclick', (e) => e.stopPropagation());
+      overlayContent.addEventListener('wheel', (e) => e.stopPropagation());
+
+      // 팝업 내부 모든 요소에 이벤트 전파 차단 적용
+      const allElements = overlayContent.querySelectorAll('*');
+      allElements.forEach(element => {
+        element.addEventListener('mousedown', (e) => e.stopPropagation());
+        element.addEventListener('mousemove', (e) => e.stopPropagation());
+        element.addEventListener('mouseup', (e) => e.stopPropagation());
+        element.addEventListener('click', (e) => e.stopPropagation());
+        element.addEventListener('dblclick', (e) => e.stopPropagation());
+        element.addEventListener('wheel', (e) => e.stopPropagation());
+        element.addEventListener('focus', (e) => e.stopPropagation());
+        element.addEventListener('blur', (e) => e.stopPropagation());
+      });
+
+      const overlay = new (window as any).kakao.maps.CustomOverlay({
+        content: overlayContent,
+        position: new (window as any).kakao.maps.LatLng(place.lat, place.lng),
+        yAnchor: 1.3, // 마커 아이콘 위에 표시
+        xAnchor: 0.5
+      });
+
+      overlay.setMap(mapInstance.current);
+      overlay.placeId = place.id; // 장소 ID 저장
+      infoWindowRef.current = overlay;
+
+      // 이벤트 리스너 등록
+      const closeBtn = overlayContent.querySelector('#close-btn');
+      const likeBtn = overlayContent.querySelector('#like-btn');
+      const dislikeBtn = overlayContent.querySelector('#dislike-btn');
+      const commentBtn = overlayContent.querySelector('#comment-btn');
+      const commentInput = overlayContent.querySelector('#comment-input');
+      const nicknameInput = overlayContent.querySelector('#nickname-input');
+
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          overlay.setMap(null);
+          infoWindowRef.current = null;
+        };
+      }
+
+      if (likeBtn) {
+        likeBtn.onclick = async () => {
+          try {
+            const response = await api.spots.likeSpot(place.id);
+            likeBtn.innerHTML = `👍 ${response.likes}`;
+            if (dislikeBtn) dislikeBtn.innerHTML = `👎 ${response.dislikes}`;
+          } catch (error) {
+            console.error('좋아요 실패:', error);
+          }
+        };
+      }
+
+      if (dislikeBtn) {
+        dislikeBtn.onclick = async () => {
+          try {
+            const response = await api.spots.dislikeSpot(place.id);
+            if (likeBtn) likeBtn.innerHTML = `👍 ${response.likes}`;
+            dislikeBtn.innerHTML = `👎 ${response.dislikes}`;
+          } catch (error) {
+            console.error('싫어요 실패:', error);
+          }
+        };
+      }
+
+      if (commentBtn && commentInput && nicknameInput) {
+        const addComment = async () => {
+          const nickname = nicknameInput.value.trim();
+          const comment = commentInput.value.trim();
+          
+          if (!nickname || !comment) return;
+          
+          try {
+            await api.comments.createComment({
+              spot_id: place.id,
+              content: comment,
+              nickname: nickname
+            });
+            commentInput.value = '';
+            loadComments();
+          } catch (error) {
+            console.error('댓글 등록 실패:', error);
+          }
+        };
+
+        commentBtn.onclick = addComment;
+        commentInput.onkeypress = (e) => {
+          if (e.key === 'Enter') addComment();
+        };
+      }
+
+      // 댓글 로드
+      const loadComments = async () => {
+        try {
+          const comments = await api.comments.getComments({ spot_id: place.id, limit: 5 });
+          const commentsList = overlayContent.querySelector('#comments-list');
+          
+          if (commentsList) {
+            if (comments.length === 0) {
+              commentsList.innerHTML = '<div style="text-align: center; color: #999;">첫 번째 댓글을 남겨보세요!</div>';
+            } else {
+              commentsList.innerHTML = comments.map(comment => `
+                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-weight: 600; font-size: 13px;">${comment.nickname || '익명'}</span>
+                    <span style="font-size: 12px; color: #999;">${new Date(comment.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div style="font-size: 14px; color: #555;">${comment.content}</div>
+                </div>
+              `).join('');
+            }
+          }
+        } catch (error) {
+          console.error('댓글 로딩 실패:', error);
+          const commentsList = overlayContent.querySelector('#comments-list');
+          if (commentsList) {
+            commentsList.innerHTML = '<div style="color: #999;">댓글을 불러올 수 없습니다.</div>';
+          }
+        }
+      };
+
+      loadComments();
+    }, 500);
   };
 
   const showInfoWindowForPlace = (place: Spot) => {
@@ -635,30 +726,30 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     isNoiseRecorded: boolean;
   }) => {
     try {
-      setIsRegistering(true);
-      
-      // 조용함 점수 계산 (소음도 기반)
-      const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
-      
-      const spotData = {
-        name: data.name,
-        description: data.description,
-        lat: pinModalData.lat,
-        lng: pinModalData.lng,
-        category: data.category,
-        noise_level: data.noiseLevel,
-        rating: data.rating,
-        quiet_rating: Math.round(quietRating),
-        is_noise_recorded: data.isNoiseRecorded,
-        // TODO: 이미지 업로드 처리 (S3 등)
-        // image_url: uploadedImageUrl
-      };
+      await withLoading(async () => {
+        // 조용함 점수 계산 (소음도 기반)
+        const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
+        
+        const spotData = {
+          name: data.name,
+          description: data.description,
+          lat: pinModalData.lat,
+          lng: pinModalData.lng,
+          category: data.category,
+          noise_level: data.noiseLevel,
+          rating: data.rating,
+          quiet_rating: Math.round(quietRating),
+          is_noise_recorded: data.isNoiseRecorded,
+        };
 
-      console.log('API 호출 데이터:', spotData);
-      
-      // API 호출 - 실제 네트워크 요청
-      const response = await api.spots.createSpot(spotData);
-      console.log('API 응답:', response);
+        console.log('API 호출 데이터:', spotData);
+        
+        // API 호출 - 실제 네트워크 요청
+        const response = await api.spots.createSpot(spotData);
+        console.log('API 응답:', response);
+        
+        return response;
+      }, '쉿플레이스 등록 중...');
       
       // 성공 시 모달 닫기
       setShowPinModal(false);
@@ -673,8 +764,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     } catch (error) {
       console.error('스팟 등록 실패:', error);
       showAlert('error', '스팟 등록에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsRegistering(false);
     }
   };
 
@@ -814,7 +903,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         onClose={() => setShowPinModal(false)}
         lat={pinModalData.lat}
         lng={pinModalData.lng}
-        isLoading={isRegistering}
         onAlert={showAlert}
         onSubmit={handlePinRegistration}
       />

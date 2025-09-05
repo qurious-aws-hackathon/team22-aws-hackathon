@@ -21,7 +21,6 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
   if (!isOpen) return null;
 
   const bgColor = type === 'success' ? '#4CAF50' : '#F44336';
-  const icon = type === 'success' ? '✅' : '❌';
 
   if (autoClose) {
     // 화면 하단 토스트 스타일
@@ -85,13 +84,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
         color: 'white',
         animation: 'alertSlideIn 0.3s ease-out'
       }}>
-        <div style={{
-          fontSize: '56px',
-          marginBottom: '20px',
-          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-        }}>
-          {icon}
-        </div>
+
         <div style={{
           fontSize: '18px',
           marginBottom: '28px',

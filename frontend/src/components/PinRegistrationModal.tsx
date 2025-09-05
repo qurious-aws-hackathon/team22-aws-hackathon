@@ -5,7 +5,6 @@ interface PinRegistrationModalProps {
   onClose: () => void;
   lat: number;
   lng: number;
-  isLoading?: boolean;
   onAlert?: (type: 'success' | 'error', message: string) => void;
   onSubmit: (data: {
     name: string;
@@ -23,7 +22,6 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   onClose,
   lat,
   lng,
-  isLoading = false,
   onAlert,
   onSubmit
 }) => {
@@ -245,7 +243,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
       zIndex: 3000
     }}
     onClick={(e) => {
-      if (e.target === e.currentTarget && !isLoading) {
+      if (e.target === e.currentTarget) {
         stopNoiseMeasurement();
         onClose();
       }
@@ -258,7 +256,8 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
         width: '90%',
         maxWidth: '400px',
         maxHeight: '80vh',
-        overflow: 'auto'
+        overflow: 'auto',
+        position: 'relative'
       }}>
         <div style={{
           display: 'flex',
@@ -269,19 +268,15 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           <h2 style={{ margin: 0, color: '#333' }}>🤫 쉿플레이스 등록</h2>
           <button
             onClick={() => {
-              if (!isLoading) {
-                stopNoiseMeasurement();
-                onClose();
-              }
+              stopNoiseMeasurement();
+              onClose();
             }}
-            disabled={isLoading}
             style={{
               background: 'none',
               border: 'none',
               fontSize: '1.5rem',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              color: isLoading ? '#ccc' : '#666',
-              opacity: isLoading ? 0.5 : 1
+              cursor: 'pointer',
+              color: '#666'
             }}
           >
             ✕
@@ -483,61 +478,37 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button
               type="button"
-              disabled={isLoading}
               onClick={() => {
-                if (!isLoading) {
-                  stopNoiseMeasurement();
-                  onClose();
-                }
+                stopNoiseMeasurement();
+                onClose();
               }}
               style={{
                 flex: 1,
                 padding: '0.75rem',
                 border: '1px solid #ddd',
                 borderRadius: '8px',
-                background: isLoading ? '#f5f5f5' : 'white',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '1rem',
-                color: isLoading ? '#ccc' : '#333',
-                opacity: isLoading ? 0.6 : 1
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '1rem'
               }}
             >
               취소
             </button>
             <button
               type="submit"
-              disabled={isLoading}
               style={{
                 flex: 1,
                 padding: '0.75rem',
                 border: 'none',
                 borderRadius: '8px',
-                background: isLoading ? '#ccc' : '#667eea',
+                background: '#667eea',
                 color: 'white',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
+                cursor: 'pointer',
                 fontSize: '1rem',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
+                fontWeight: '600'
               }}
             >
-              {isLoading ? (
-                <>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid #fff',
-                    borderTop: '2px solid transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                  등록 중...
-                </>
-              ) : (
-                '등록'
-              )}
+              등록
             </button>
           </div>
         </form>

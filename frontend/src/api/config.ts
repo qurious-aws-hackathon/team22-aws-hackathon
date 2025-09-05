@@ -9,31 +9,59 @@ const API_BASE_URLS = {
 // Axios 인스턴스 생성
 export const populationClient = axios.create({
   baseURL: API_BASE_URLS.population,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 
 export const spotsClient = axios.create({
   baseURL: API_BASE_URLS.spots,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 
 export const imagesClient = axios.create({
   baseURL: API_BASE_URLS.images,
-  timeout: 30000
+  timeout: 30000,
+  headers: {
+    'Accept': 'application/json'
+  }
 });
 
-// 공통 에러 핸들링
+// 공통 에러 핸들링 및 로깅
 [populationClient, spotsClient, imagesClient].forEach(client => {
-  client.interceptors.response.use(
-    response => response,
+  // 요청 인터셉터
+  client.interceptors.request.use(
+    config => {
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, config.data);
+      return config;
+    },
     error => {
-      console.error('API Error:', error.response?.data || error.message);
+      console.error('Request Error:', error);
+      return Promise.reject(error);
+    }
+  );
+
+  // 응답 인터셉터
+  client.interceptors.response.use(
+    response => {
+      console.log(`API Response: ${response.config.url}`, response.data);
+      return response;
+    },
+    error => {
+      console.error('API Error Details:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
       return Promise.reject(error);
     }
   );

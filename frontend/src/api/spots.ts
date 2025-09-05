@@ -34,14 +34,44 @@ export const spotsApi = {
   },
 
   async likeSpot(spotId: string): Promise<ReactionResponse> {
-    const response = await spotsClient.post(`/spots/${spotId}/like`);
-    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-    return data;
+    try {
+      const response = await spotsClient.post(`/spots/${spotId}/like`, {});
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      return {
+        success: true,
+        message: 'Success',
+        likes: data.likes || data.like_count || 0,
+        dislikes: data.dislikes || data.dislike_count || 0
+      };
+    } catch (error) {
+      console.error('Like API Error:', error);
+      return {
+        success: false,
+        message: 'Failed',
+        likes: 0,
+        dislikes: 0
+      };
+    }
   },
 
   async dislikeSpot(spotId: string): Promise<ReactionResponse> {
-    const response = await spotsClient.post(`/spots/${spotId}/dislike`);
-    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-    return data;
+    try {
+      const response = await spotsClient.post(`/spots/${spotId}/dislike`, {});
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      return {
+        success: true,
+        message: 'Success',
+        likes: data.likes || data.like_count || 0,
+        dislikes: data.dislikes || data.dislike_count || 0
+      };
+    } catch (error) {
+      console.error('Dislike API Error:', error);
+      return {
+        success: false,
+        message: 'Failed',
+        likes: 0,
+        dislikes: 0
+      };
+    }
   }
 };

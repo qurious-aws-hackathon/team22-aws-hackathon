@@ -6,6 +6,7 @@ import FloatingPlaceList from './components/FloatingPlaceList';
 import LoadingScreen from './components/LoadingScreen';
 import ChatBot from './components/ChatBot';
 import LocationButton from './components/LocationButton';
+import { LoadingProvider } from './contexts/LoadingContext';
 import { api, type Spot } from './api';
 import './App.css';
 
@@ -38,31 +39,33 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <TopBar spotsCount={spots.length} />
-      
-      <MainLayout>
-        <div className="map-wrapper">
-          <Map 
-            places={spots} 
-            onPlaceClick={handleSpotClick}
-            selectedSpot={selectedSpot}
-            onSpotsUpdate={loadSpots}
-          />
-        </div>
+    <LoadingProvider>
+      <div className="app">
+        <TopBar spotsCount={spots.length} />
         
-        <FloatingPlaceList 
-          places={spots} 
-          onPlaceClick={handleSpotClick} 
-        />
-      </MainLayout>
+        <MainLayout>
+          <div className="map-wrapper">
+            <Map 
+              places={spots} 
+              onPlaceClick={handleSpotClick}
+              selectedSpot={selectedSpot}
+              onSpotsUpdate={loadSpots}
+            />
+          </div>
+          
+          <FloatingPlaceList 
+            places={spots} 
+            onPlaceClick={handleSpotClick} 
+          />
+        </MainLayout>
 
-      {/* Location Button - positioned above ChatBot */}
-      <LocationButton />
+        {/* Location Button - positioned above ChatBot */}
+        <LocationButton />
 
-      {/* ChatBot - Non-intrusive floating component */}
-      <ChatBot />
-    </div>
+        {/* ChatBot - Non-intrusive floating component */}
+        <ChatBot />
+      </div>
+    </LoadingProvider>
   );
 }
 
