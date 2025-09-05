@@ -1,48 +1,134 @@
 import { useEffect, useRef, useState } from 'react';
 import { getScoreText, getScoreColor, getScoreEmoji } from '../services/api';
 
-const Map = ({ places, onPlaceClick }) => {
+const Map = ({ places, onPlaceClick, onLocationChange }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markers = useRef([]);
   const circles = useRef([]);
   const currentInfoWindow = useRef(null);
+  const userMarker = useRef(null); // 사용자 마커 참조 추가
   const [selectedArea, setSelectedArea] = useState(null);
   const [viewMode, setViewMode] = useState('heatmap');
+  const [userLocation, setUserLocation] = useState(null);
+
+  // 카카오 지도 API 동적 로드
+  const loadKakaoMapAPI = () => {
+    return new Promise((resolve, reject) => {
+      if (window.kakao && window.kakao.maps && window.kakao.maps.LatLng) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=9aad82b3e0f110046a739e949ebbd947&autoload=false';
+      script.onload = () => {
+        window.kakao.maps.load(() => {
+          // API 완전 로드 확인
+          if (window.kakao.maps.LatLng && window.kakao.maps.Map) {
+            resolve();
+          } else {
+            reject(new Error('카카오맵 API 로드 실패'));
+          }
+        });
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
 
   useEffect(() => {
-    if (!window.kakao || !window.kakao.maps) {
-      if (mapRef.current) {
-        mapRef.current.innerHTML = `
-          <div style="
-            width: 100%; 
-            height: 100%; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            text-align: center;
-            font-size: 1.2rem;
-          ">
-            <div>
-              <h3>🗺️지도 로딩 중...</h3>
-              <p>카카오 지도 API를 불러오고 있습니다</p>
-            </div>
-          </div>
-        `;
-      }
-      return;
-    }
+    // 사용자 위치를 먼저 가져온 후 지도 초기화
+    const initMap = async () => {
+      try {
+        await loadKakaoMapAPI();
+        
+        // 사용자 실제 위치 가져오기 (고정밀도)
+        const getUserLocation = () => {
+          return new Promise((resolve) => {
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  console.log('실제 위치:', position.coords.latitude, position.coords.longitude);
+                  resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                  });
+                },
+                (error) => {
+                  console.log('위치 권한 거부 또는 오류:', error);
+                  // 위치 권한 거부시 서울시청으로 기본 설정
+                  resolve({ lat: 37.5665, lng: 126.9780 });
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0
+                }
+              );
+            } else {
+              console.log('Geolocation 미지원');
+              resolve({ lat: 37.5665, lng: 126.9780 });
+            }
+          });
+        };
 
-    const container = mapRef.current;
-    const options = {
-      center: new window.kakao.maps.LatLng(37.5665, 126.9780),
-      level: 7
+        const location = await getUserLocation();
+        
+        // 카카오맵 API 완전 로드 확인
+        if (!window.kakao || !window.kakao.maps || !window.kakao.maps.LatLng) {
+          throw new Error('카카오맵 API가 완전히 로드되지 않았습니다');
+        }
+        
+        const options = {
+          center: new window.kakao.maps.LatLng(location.lat, location.lng),
+          level: 4,  // 초기 레벨
+          draggable: true,
+          scrollwheel: true,  // 마우스 휠 줌 활성화
+          disableDoubleClick: false,  // 더블클릭 줌 활성화
+          disableDoubleClickZoom: false
+        };
+        
+        mapInstance.current = new window.kakao.maps.Map(mapRef.current, options);
+        
+        // 지도 중앙에 내 위치 확실히 설정
+        setTimeout(() => {
+          mapInstance.current.setCenter(new window.kakao.maps.LatLng(location.lat, location.lng));
+        }, 100);
+        
+        // 사용자 위치에 마커 추가
+        if (window.kakao.maps.Marker && window.kakao.maps.MarkerImage) {
+          userMarker.current = new window.kakao.maps.Marker({
+            position: new window.kakao.maps.LatLng(location.lat, location.lng),
+            map: mapInstance.current,
+            image: new window.kakao.maps.MarkerImage(
+              'data:image/svg+xml;base64,' + btoa(`
+                <svg width="40" height="50" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 50C20 50 35 30 35 20C35 11.7157 28.2843 5 20 5C11.7157 5 5 11.7157 5 20C5 30 20 50 20 50Z" fill="#4285F4" stroke="white" stroke-width="2"/>
+                  <circle cx="20" cy="20" r="8" fill="white"/>
+                  <circle cx="20" cy="20" r="4" fill="#4285F4"/>
+                </svg>
+              `),
+              new window.kakao.maps.Size(40, 50),
+              { offset: new window.kakao.maps.Point(20, 50) }
+            )
+          });
+        }
+        
+        // 위치 정보를 부모 컴포넌트에 전달
+        setUserLocation(location);
+        
+        if (onLocationChange) {
+          onLocationChange(location);
+        }
+        
+      } catch (error) {
+        console.error('지도 초기화 실패:', error);
+      }
     };
 
-    mapInstance.current = new window.kakao.maps.Map(container, options);
-  }, []);
+    initMap();
+  }, [onLocationChange]);
 
   useEffect(() => {
     if (!mapInstance.current || !places.length) return;
@@ -136,10 +222,12 @@ const Map = ({ places, onPlaceClick }) => {
         strokeOpacity: 0.8,
         fillColor: color,
         fillOpacity: opacity,
-        map: mapInstance.current
+        map: mapInstance.current,
+        clickable: true
       });
 
-      window.kakao.maps.event.addListener(circle, 'click', () => {
+      window.kakao.maps.event.addListener(circle, 'click', (mouseEvent) => {
+        mouseEvent.stop();
         setSelectedArea(place);
         onPlaceClick?.(place);
       });
@@ -152,10 +240,16 @@ const Map = ({ places, onPlaceClick }) => {
     places.forEach(place => {
       const position = new window.kakao.maps.LatLng(place.lat, place.lng);
       
+      // 클릭 가능한 마커 콘텐츠 생성
+      const markerContent = document.createElement('div');
+      markerContent.innerHTML = createCustomMarkerContent(place);
+      markerContent.style.cursor = 'pointer';
+      markerContent.style.pointerEvents = 'auto';
+      
       // 커스텀 오버레이로 푸딘코 스타일 핀 생성
       const customOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
-        content: createCustomMarkerContent(place),
+        content: markerContent,
         yAnchor: 1,
         clickable: true
       });
@@ -167,9 +261,10 @@ const Map = ({ places, onPlaceClick }) => {
         zIndex: 1000
       });
 
-      // 커스텀 오버레이 클릭 이벤트
-      const overlayElement = customOverlay.getContent();
-      overlayElement.addEventListener('click', () => {
+      // 마커 클릭 이벤트 - 이벤트 전파 방지
+      markerContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
         if (currentInfoWindow.current) {
           currentInfoWindow.current.close();
         }
@@ -179,6 +274,15 @@ const Map = ({ places, onPlaceClick }) => {
         
         setSelectedArea(place);
         onPlaceClick?.(place);
+      });
+
+      // 드래그 이벤트 방지
+      markerContent.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+      });
+
+      markerContent.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
       });
 
       markers.current.push(customOverlay);
@@ -330,6 +434,109 @@ const Map = ({ places, onPlaceClick }) => {
           }}
         >
           📍 핀
+        </button>
+      </div>
+
+      {/* 내 위치로 이동 버튼 */}
+      <div style={{
+        position: 'absolute',
+        top: '70px',
+        right: '10px',
+        zIndex: 1000
+      }}>
+        <button
+          onClick={() => {
+            if (navigator.geolocation && mapInstance.current) {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  console.log('🎯 버튼 - 새로운 위치:', position.coords.latitude, position.coords.longitude);
+                  console.log('정확도:', position.coords.accuracy, 'm');
+                  
+                  const newLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                  };
+                  
+                  try {
+                    // 지도 중심 이동 + 고정 레벨로 설정
+                    if (mapInstance.current && mapInstance.current.setCenter) {
+                      mapInstance.current.setCenter(new window.kakao.maps.LatLng(newLocation.lat, newLocation.lng));
+                      mapInstance.current.setLevel(4); // 🎯 버튼 클릭시에만 고정 레벨
+                    }
+                    
+                    // 사용자 마커 위치 업데이트
+                    if (userMarker.current && userMarker.current.setPosition) {
+                      userMarker.current.setPosition(new window.kakao.maps.LatLng(newLocation.lat, newLocation.lng));
+                    }
+                    
+                    setUserLocation(newLocation);
+                    if (onLocationChange) {
+                      onLocationChange(newLocation);
+                    }
+                  } catch (error) {
+                    console.error('지도 업데이트 오류:', error);
+                  }
+                },
+                (error) => {
+                  console.error('위치 가져오기 실패:', error);
+                  let errorMessage = '위치를 가져올 수 없습니다. ';
+                  
+                  switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                      errorMessage += '위치 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.';
+                      break;
+                    case error.POSITION_UNAVAILABLE:
+                      errorMessage += '위치 정보를 사용할 수 없습니다.';
+                      break;
+                    case error.TIMEOUT:
+                      errorMessage += '위치 요청 시간이 초과되었습니다.';
+                      break;
+                    default:
+                      errorMessage += '알 수 없는 오류가 발생했습니다.';
+                      break;
+                  }
+                  
+                  alert(errorMessage + '\n\n기본 위치(서울시청)로 이동합니다.');
+                  
+                  // 기본 위치로 이동
+                  const defaultLocation = { lat: 37.5665, lng: 126.9780 };
+                  if (mapInstance.current) {
+                    mapInstance.current.setCenter(new window.kakao.maps.LatLng(defaultLocation.lat, defaultLocation.lng));
+                    mapInstance.current.setLevel(4);
+                  }
+                  
+                  if (userMarker.current) {
+                    userMarker.current.setPosition(new window.kakao.maps.LatLng(defaultLocation.lat, defaultLocation.lng));
+                  }
+                  
+                  setUserLocation(defaultLocation);
+                  if (onLocationChange) {
+                    onLocationChange(defaultLocation);
+                  }
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 15000,
+                  maximumAge: 0
+                }
+              );
+            }
+          }}
+          style={{
+            padding: '12px',
+            border: 'none',
+            borderRadius: '12px',
+            background: 'white',
+            color: '#495057',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: '1px solid #e9ecef',
+            transition: 'all 0.2s'
+          }}
+          title="내 위치로 이동"
+        >
+          🎯
         </button>
       </div>
 

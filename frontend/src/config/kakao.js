@@ -1,24 +1,30 @@
 // 카카오 API 설정
-export const KAKAO_API_KEY = import.meta.env.VITE_KAKAO_API_KEY;
+export const KAKAO_API_KEY = '9aad82b3e0f110046a739e949ebbd947';
 
-console.log('환경변수 확인:', KAKAO_API_KEY);
-
-// 카카오 지도 API 로드
+// 카카오 지도 API 로드 (단순화)
 export const loadKakaoMapScript = () => {
   return new Promise((resolve, reject) => {
+    // 이미 로드되어 있으면 바로 resolve
     if (window.kakao && window.kakao.maps) {
       resolve();
       return;
     }
 
     const script = document.createElement('script');
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_API_KEY}&autoload=false`;
-    console.log('카카오 API 로드 URL:', script.src);
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_API_KEY}`;
+    script.async = true;
+    
     script.onload = () => {
-      window.kakao.maps.load(() => {
-        resolve();
-      });
+      // 스크립트 로드 후 잠시 대기
+      setTimeout(() => {
+        if (window.kakao && window.kakao.maps) {
+          resolve();
+        } else {
+          reject(new Error('카카오 지도 API 로드 실패'));
+        }
+      }, 500);
     };
+    
     script.onerror = reject;
     document.head.appendChild(script);
   });
