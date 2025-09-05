@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { type Spot, type Comment, api } from '../api';
+import { authApi } from '../api/auth';
 import { getScoreColor, getScoreText, getScoreEmoji } from '../utils';
 import { useLoading } from '../contexts/LoadingContext';
 
@@ -7,9 +8,10 @@ interface PlaceDetailPanelProps {
   spot: Spot;
   onClose: () => void;
   position?: { x: number; y: number };
+  onDelete?: (spotId: string) => void;
 }
 
-const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, position }) => {
+const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, position, onDelete }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [nickname, setNickname] = useState('');
@@ -56,6 +58,30 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
       setDislikeCount(response.dislikes);
     } catch (error) {
       console.error('싫어요 실패:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('정말로 이 장소를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const result = await withLoading(
+        () => api.spots.deleteSpot(spot.id),
+        '장소 삭제 중...'
+      );
+      
+      if (result.success) {
+        alert('장소가 성공적으로 삭제되었습니다.');
+        onDelete?.(spot.id);
+        onClose();
+      } else {
+        alert(result.message || '장소 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('장소 삭제 실패:', error);
+      alert('장소 삭제에 실패했습니다.');
     }
   };
 
@@ -141,14 +167,37 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
         {/* 제목 */}
         <div style={{ padding: '16px' }}>
-          <h2 style={{ 
-            margin: '0 0 12px 0', 
-            fontSize: '20px', 
-            fontWeight: '700',
-            color: '#333'
-          }}>
-            {spot.name}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <h2 style={{ 
+              margin: 0, 
+              fontSize: '20px', 
+              fontWeight: '700',
+              color: '#333'
+            }}>
+              {spot.name}
+            </h2>
+            {(() => {
+              const currentUser = authApi.getCurrentUser();
+              const canDelete = currentUser && (spot.user_id === currentUser.id || spot.user_id === 'anonymous');
+              
+              return canDelete && (
+                <button
+                  onClick={handleDelete}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    color: '#ff4757',
+                    padding: '4px'
+                  }}
+                  title="장소 삭제"
+                >
+                  🗑️
+                </button>
+              );
+            })()}
+          </div>
 
           {/* 좋아요/싫어요/소음도 */}
           <div style={{

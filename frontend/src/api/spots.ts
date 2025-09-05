@@ -73,5 +73,21 @@ export const spotsApi = {
         dislikes: 0
       };
     }
+  },
+
+  async deleteSpot(spotId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await spotsClient.delete(`/spots/${spotId}`);
+      return {
+        success: true,
+        message: '장소가 삭제되었습니다.'
+      };
+    } catch (error) {
+      console.error('Delete Spot API Error:', error);
+      return {
+        success: false,
+        message: '장소 삭제에 실패했습니다.'
+      };
+    }
   }
 };

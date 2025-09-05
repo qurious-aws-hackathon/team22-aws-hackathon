@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
+import { authApi } from '../api/auth';
 import PinRegistrationModal from './PinRegistrationModal';
 import PlaceDetailPanel from './PlaceDetailPanel';
 import Alert from './Alert';
@@ -12,6 +13,7 @@ interface MapProps {
   onPlaceClick?: (place: Spot) => void;
   selectedSpot?: Spot | null;
   onSpotsUpdate?: () => void;
+  onSpotDelete?: (spotId: string) => void;
 }
 
 interface ContextMenu {
@@ -22,7 +24,7 @@ interface ContextMenu {
   lng: number;
 }
 
-const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUpdate }) => {
+const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUpdate, onSpotDelete }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -278,7 +280,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">✕</button>
           </div>
           
-          <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #333;">${place.name}</h2>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #333;">${place.name}</h2>
+            <button id="delete-btn" style="background: #ff4757; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: white; padding: 4px 8px; font-weight: 500; display: none;" title="장소 삭제">
+              삭제
+            </button>
+          </div>
           
           <div style="display: flex; gap: 12px; margin-bottom: 16px;">
             <button id="like-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
@@ -346,6 +353,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const closeBtn = overlayContent.querySelector('#close-btn');
       const likeBtn = overlayContent.querySelector('#like-btn');
       const dislikeBtn = overlayContent.querySelector('#dislike-btn');
+      const deleteBtn = overlayContent.querySelector('#delete-btn');
       const commentBtn = overlayContent.querySelector('#comment-btn');
       const commentInput = overlayContent.querySelector('#comment-input');
       const nicknameInput = overlayContent.querySelector('#nickname-input');
@@ -379,6 +387,34 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             console.error('싫어요 실패:', error);
           }
         };
+      }
+
+      if (deleteBtn) {
+        const currentUser = authApi.getCurrentUser();
+        const canDelete = currentUser && (place.user_id === currentUser.id || place.user_id === 'anonymous');
+        
+        if (canDelete) {
+          deleteBtn.style.display = 'inline-block';
+          deleteBtn.onclick = async () => {
+            if (!confirm('정말로 이 장소를 삭제하시겠습니까?')) return;
+            
+            try {
+              const result = await api.spots.deleteSpot(place.id);
+              if (result.success) {
+                window.alert('장소가 성공적으로 삭제되었습니다.');
+                overlay.setMap(null);
+                infoWindowRef.current = null;
+                onSpotDelete?.(place.id);
+                if (onSpotsUpdate) onSpotsUpdate();
+              } else {
+                window.alert(result.message || '장소 삭제에 실패했습니다.');
+              }
+            } catch (error) {
+              console.error('장소 삭제 실패:', error);
+              window.alert('장소 삭제에 실패했습니다.');
+            }
+          };
+        }
       }
 
       if (commentBtn && commentInput && nicknameInput) {
@@ -730,6 +766,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         // 조용함 점수 계산 (소음도 기반)
         const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
         
+        const currentUser = authApi.getCurrentUser();
         const spotData = {
           name: data.name,
           description: data.description,
@@ -740,6 +777,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           rating: data.rating,
           quiet_rating: Math.round(quietRating),
           is_noise_recorded: data.isNoiseRecorded,
+          user_id: currentUser ? currentUser.id : 'anonymous'
         };
 
         console.log('API 호출 데이터:', spotData);

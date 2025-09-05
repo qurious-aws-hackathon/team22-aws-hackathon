@@ -453,7 +453,7 @@ SEOUL_OPEN_DATA_API_KEY=your_seoul_api_key_here
 
 #### 환경 변수 템플릿 (.env.example)
 ```bash
-# .env.example (Git에 포함됨)
+# .env (Git에 포함됨)
 VITE_KAKAO_API_KEY=your_kakao_api_key_here
 SEOUL_OPEN_DATA_API_KEY=your_seoul_api_key_here
 ```
