@@ -1,5 +1,10 @@
 {
+  "name": "population-collector",
+  "version": "1.0.0",
+  "description": "Seoul population data collector for Lambda",
+  "main": "populationCollector.js",
   "dependencies": {
-    "yarn": "^1.22.22"
+    "aws-sdk": "^2.1691.0",
+    "axios": "^1.6.0"
   }
 }

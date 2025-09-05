@@ -99,10 +99,41 @@ async function queryRealtimeCrowdData() {
   }
 }
 
+// 지역별 균형 조정 함수
+function balanceRegionalData(data) {
+  const REGION_LIMIT = 8; // 지역별 최대 8개 항목
+  const coordMap = new Map();
+  const regionCounts = {};
+  
+  const balanced = data.filter(item => {
+    // 1. 좌표 기반 중복 제거 (반경 100m 내 동일 간주)
+    const coordKey = `${Math.round(item.lat * 1000)}_${Math.round(item.lng * 1000)}`;
+    if (coordMap.has(coordKey)) return false;
+    coordMap.set(coordKey, true);
+    
+    // 2. 지역 추출
+    let region = '기타구';
+    if (item.district) {
+      region = item.district;
+    } else if (item.name && item.name.includes('구')) {
+      region = item.name.includes('마포구') ? '마포구' : 
+               item.name.includes('강남구') ? '강남구' : 
+               item.name.includes('용산구') ? '용산구' : '기타구';
+    }
+    
+    // 3. 지역별 수량 제한
+    regionCounts[region] = (regionCounts[region] || 0) + 1;
+    return regionCounts[region] <= REGION_LIMIT;
+  });
+  
+  console.log('Regional distribution after balancing:', regionCounts);
+  return balanced;
+}
+
 // 통합 데이터 조회
 async function getIntegratedData() {
   try {
-    console.log('Fetching integrated data with deduplication');
+    console.log('Fetching integrated data with deduplication and regional balancing');
     
     const [placesData, crowdData] = await Promise.all([
       queryPlacesCurrentData(),
@@ -112,7 +143,11 @@ async function getIntegratedData() {
     const combinedData = [...placesData, ...crowdData];
     console.log(`Combined data: ${placesData.length} places + ${crowdData.length} unique crowd stations = ${combinedData.length} total`);
     
-    return combinedData;
+    // 지역별 균형 조정 적용
+    const balancedData = balanceRegionalData(combinedData);
+    console.log(`Balanced data: ${balancedData.length} items after regional balancing`);
+    
+    return balancedData;
     
   } catch (error) {
     console.error('Integrated data fetch failed:', error);
