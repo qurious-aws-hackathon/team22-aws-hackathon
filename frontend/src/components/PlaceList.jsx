@@ -1,4 +1,4 @@
-import { getLevelText, getLevelClass } from '../services/api';
+import { getLevelText, getLevelClass, getScoreText, getScoreColor, getScoreEmoji } from '../services/api';
 
 const PlaceList = ({ places, onPlaceClick }) => {
   const formatTime = (timestamp) => {
@@ -13,7 +13,7 @@ const PlaceList = ({ places, onPlaceClick }) => {
     <div>
       <h3>🤫 조용한 장소 목록</h3>
       <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-        실시간 혼잡도 기준 정렬
+        조용함 지수 기준 정렬
       </p>
       
       {places.map(place => (
@@ -22,8 +22,25 @@ const PlaceList = ({ places, onPlaceClick }) => {
           className="place-item"
           onClick={() => onPlaceClick(place)}
         >
-          <h4>{place.name}</h4>
-          <p>{place.category}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+            <h4 style={{ margin: 0, flex: 1 }}>{place.name}</h4>
+            <div style={{ 
+              background: getScoreColor(place.quietScore),
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              minWidth: '50px',
+              textAlign: 'center'
+            }}>
+              {getScoreEmoji(place.quietScore)} {place.quietScore}점
+            </div>
+          </div>
+          
+          <p style={{ margin: '4px 0', color: '#666', fontSize: '0.9rem' }}>
+            {place.category} • {getScoreText(place.quietScore)}
+          </p>
           
           <div style={{ marginTop: '0.5rem' }}>
             <span className={`noise-level ${getLevelClass(place.noiseLevel, 'noise')}`}>
