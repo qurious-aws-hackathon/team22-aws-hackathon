@@ -21,6 +21,13 @@ aws-exports.js
 amplify/
 cdk.out/
 
+# Terraform
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/tfplan
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+
 # IDE
 .vscode/
 .idea/
