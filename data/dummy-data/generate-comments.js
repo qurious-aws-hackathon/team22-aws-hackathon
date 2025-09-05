@@ -58,8 +58,8 @@ const COMMENT_TEMPLATES = [
     '대체로 만족하지만 주차가 어려워요.'
 ];
 
-// Korean nicknames for anonymous comments
-const ANONYMOUS_NICKNAMES = [
+// Korean nicknames for comments
+const COMMENT_NICKNAMES = [
     '조용함추구자', '평화로운마음', '힐링러버', '고요한영혼', '잔잔한바다',
     '따뜻한햇살', '부드러운바람', '맑은하늘', '포근한마음', '달콤한휴식',
     '조용한독서가', '평온한시간', '고요한아침', '잔잔한오후', '따뜻한저녁',
@@ -90,18 +90,17 @@ async function generateComments(spotIds, userIds) {
     for (let i = 0; i < 150; i++) {
         const spotId = spotIds[Math.floor(Math.random() * spotIds.length)];
         const content = COMMENT_TEMPLATES[Math.floor(Math.random() * COMMENT_TEMPLATES.length)];
-        const nickname = ANONYMOUS_NICKNAMES[Math.floor(Math.random() * ANONYMOUS_NICKNAMES.length)];
+        const nickname = COMMENT_NICKNAMES[Math.floor(Math.random() * COMMENT_NICKNAMES.length)];
         
-        // 70% chance to have user_id, 30% anonymous
-        const hasUserId = Math.random() > 0.3;
-        const userId = hasUserId ? userIds[Math.floor(Math.random() * userIds.length)] : null;
+        // Always assign a user_id (NOT NULL)
+        const userId = userIds[Math.floor(Math.random() * userIds.length)];
         
         const createdAt = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(); // Last 3 months
         
         const comment = {
             id: uuidv4(),
             spot_id: spotId,
-            user_id: userId,
+            user_id: userId, // Always NOT NULL
             nickname: nickname,
             content: content,
             created_at: createdAt
@@ -158,7 +157,7 @@ async function main() {
         }
         
         console.log(`Found ${spotIds.length} spots and ${userIds.length} users`);
-        console.log('Generating 150 dummy comments...');
+        console.log('Generating 150 dummy comments (all with user_id NOT NULL)...');
         const comments = await generateComments(spotIds, userIds);
         
         console.log('Inserting comments into DynamoDB...');
@@ -179,6 +178,7 @@ async function main() {
         const avgCommentsPerSpot = Object.values(commentsBySpot).reduce((a, b) => a + b, 0) / Object.keys(commentsBySpot).length;
         console.log(`📊 Average comments per spot: ${avgCommentsPerSpot.toFixed(1)}`);
         console.log(`📊 Spots with comments: ${Object.keys(commentsBySpot).length}/${spotIds.length}`);
+        console.log(`📊 All comments have user_id: ${comments.every(c => c.user_id) ? 'YES' : 'NO'}`);
         
     } catch (error) {
         console.error('❌ Error:', error);

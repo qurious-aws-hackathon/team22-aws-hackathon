@@ -50,8 +50,8 @@ npm run generate-all
 
 ### Comments 테이블 (150개)
 - **내용**: 한국어 리뷰 댓글 (50가지 템플릿)
-- **닉네임**: 익명 닉네임 (30가지)
-- **사용자 연결**: 70% 실제 사용자, 30% 익명
+- **닉네임**: 댓글용 닉네임 (30가지)
+- **사용자 연결**: 100% 실제 사용자와 연결 (user_id NOT NULL)
 - **생성일**: 최근 3개월 내 랜덤 날짜
 - **파일 저장**: `comments-dummy-data.json`
 
@@ -105,7 +105,7 @@ npm run generate-all
 ## 데이터 정합성
 
 - **Users → Spots**: 모든 Spot은 실제 User가 생성
-- **Users → Comments**: 70%의 Comment는 실제 User와 연결
+- **Users → Comments**: 100%의 Comment는 실제 User와 연결 (user_id NOT NULL)
 - **Spots → Comments**: 모든 Comment는 실제 Spot에 연결
 - **지리적 정합성**: 모든 Spot은 서울시 경계 내 위치
 - **시간적 정합성**: 생성 시간 순서 보장
