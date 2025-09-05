@@ -78,3 +78,133 @@ body {
 .crowd-low { background: #27ae60; color: white; }
 .crowd-medium { background: #f39c12; color: white; }
 .crowd-high { background: #e74c3c; color: white; }
+
+/* Loading Screen Styles */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.loading-icon {
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.quiet-animation {
+  position: relative;
+  display: inline-block;
+}
+
+.shh-emoji {
+  font-size: 4rem;
+  display: block;
+  animation: float 2s ease-in-out infinite;
+}
+
+.sound-waves {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.wave {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  animation: ripple 2s infinite;
+}
+
+.wave-1 {
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 -40px;
+  animation-delay: 0s;
+}
+
+.wave-2 {
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  animation-delay: 0.5s;
+}
+
+.wave-3 {
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  animation-delay: 1s;
+}
+
+.loading-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.loading-message {
+  font-size: 1.2rem;
+  margin: 0 0 2rem 0;
+  opacity: 0.9;
+  min-height: 1.5rem;
+}
+
+.loading-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.loading-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #fff, rgba(255, 255, 255, 0.8));
+  border-radius: 2px;
+  animation: progress 2s ease-in-out infinite;
+}
+
+.loading-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}

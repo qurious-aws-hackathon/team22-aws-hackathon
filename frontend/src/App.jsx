@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Map from './components/Map';
 import PlaceList from './components/PlaceList';
+import LoadingScreen from './components/LoadingScreen';
 import { fetchPlaces } from './services/api';
 import { loadKakaoMapScript } from './config/kakao';
 
@@ -42,13 +43,8 @@ function App() {
   };
 
   if (loading || !mapReady) {
-    return (
-      <div className="app">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          {!mapReady ? '지도 API 로딩 중...' : '데이터 로딩 중...'}
-        </div>
-      </div>
-    );
+    const message = !mapReady ? '지도 API 로딩 중...' : '데이터 로딩 중...';
+    return <LoadingScreen message={message} />;
   }
 
   return (
