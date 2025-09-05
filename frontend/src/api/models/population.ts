@@ -7,10 +7,10 @@ export interface PlacePopulation {
   name: string;
   lat: number;
   lng: number;
-  population: number;
-  crowdLevel: number;
-  noiseLevel: number;
-  walkingRecommendation?: string;
+  population: number;                 // 지역의 유동인구수
+  crowdLevel: number;                 // 혼잡도 레벨
+  noiseLevel: number;                 // 소음 레벨
+  walkingRecommendation?: string;     
   dataSource?: string;
   category?: string;
   type?: string;
