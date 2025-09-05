@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { getScoreText, getScoreColor, getScoreEmoji } from '../services/api';
 
 const Map = ({ places, onPlaceClick }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markers = useRef([]);
   const circles = useRef([]);
+  const currentInfoWindow = useRef(null);
   const [selectedArea, setSelectedArea] = useState(null);
-  const [viewMode, setViewMode] = useState('heatmap'); // 'heatmap' or 'markers'
+  const [viewMode, setViewMode] = useState('heatmap');
 
   useEffect(() => {
     if (!window.kakao || !window.kakao.maps) {
@@ -48,6 +50,12 @@ const Map = ({ places, onPlaceClick }) => {
     // Clear existing markers and circles
     markers.current.forEach(marker => marker.setMap(null));
     circles.current.forEach(circle => circle.setMap(null));
+    
+    if (currentInfoWindow.current) {
+      currentInfoWindow.current.close();
+      currentInfoWindow.current = null;
+    }
+    
     markers.current = [];
     circles.current = [];
 
@@ -58,13 +66,67 @@ const Map = ({ places, onPlaceClick }) => {
     }
   }, [places, onPlaceClick, viewMode]);
 
+  const createCustomMarkerContent = (place) => {
+    const color = getScoreColor(place.quietScore);
+    const emoji = getScoreEmoji(place.quietScore);
+    
+    return `
+      <div style="
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transform: translate(-50%, -100%);
+      ">
+        <!-- 푸딘코 스타일 핀 -->
+        <div style="
+          background: ${color};
+          color: white;
+          padding: 8px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: bold;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          border: 3px solid white;
+          min-width: 60px;
+          text-align: center;
+          position: relative;
+          z-index: 10;
+        ">
+          <div style="font-size: 14px; margin-bottom: 2px;">${emoji}</div>
+          <div>${place.quietScore}점</div>
+        </div>
+        
+        <!-- 핀 꼬리 -->
+        <div style="
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-top: 12px solid ${color};
+          margin-top: -3px;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        "></div>
+        
+        <!-- 그림자 -->
+        <div style="
+          width: 20px;
+          height: 8px;
+          background: rgba(0,0,0,0.2);
+          border-radius: 50%;
+          margin-top: 2px;
+          filter: blur(2px);
+        "></div>
+      </div>
+    `;
+  };
+
   const createHeatmapView = () => {
     places.forEach(place => {
       const position = new window.kakao.maps.LatLng(place.lat, place.lng);
       
-      // 혼잡도 + 소음도 기반 색상 결정
-      const quietScore = calculateQuietScore(place);
-      const { color, opacity, radius } = getHeatmapStyle(quietScore, place.population);
+      const { color, opacity, radius } = getHeatmapStyleByScore(place.quietScore, place.population);
       
       const circle = new window.kakao.maps.Circle({
         center: position,
@@ -77,7 +139,6 @@ const Map = ({ places, onPlaceClick }) => {
         map: mapInstance.current
       });
 
-      // 클릭 이벤트
       window.kakao.maps.event.addListener(circle, 'click', () => {
         setSelectedArea(place);
         onPlaceClick?.(place);
@@ -91,82 +152,136 @@ const Map = ({ places, onPlaceClick }) => {
     places.forEach(place => {
       const position = new window.kakao.maps.LatLng(place.lat, place.lng);
       
-      const marker = new window.kakao.maps.Marker({
+      // 커스텀 오버레이로 푸딘코 스타일 핀 생성
+      const customOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
-        map: mapInstance.current
+        content: createCustomMarkerContent(place),
+        yAnchor: 1,
+        clickable: true
       });
+
+      customOverlay.setMap(mapInstance.current);
 
       const infoWindow = new window.kakao.maps.InfoWindow({
-        content: createInfoWindowContent(place)
+        content: createInfoWindowContent(place),
+        zIndex: 1000
       });
 
-      window.kakao.maps.event.addListener(marker, 'click', () => {
-        infoWindow.open(mapInstance.current, marker);
+      // 커스텀 오버레이 클릭 이벤트
+      const overlayElement = customOverlay.getContent();
+      overlayElement.addEventListener('click', () => {
+        if (currentInfoWindow.current) {
+          currentInfoWindow.current.close();
+        }
+        
+        infoWindow.open(mapInstance.current, customOverlay);
+        currentInfoWindow.current = infoWindow;
+        
         setSelectedArea(place);
         onPlaceClick?.(place);
       });
 
-      markers.current.push(marker);
+      markers.current.push(customOverlay);
+    });
+
+    // 지도 클릭 시 팝업 닫기
+    window.kakao.maps.event.addListener(mapInstance.current, 'click', () => {
+      if (currentInfoWindow.current) {
+        currentInfoWindow.current.close();
+        currentInfoWindow.current = null;
+        setSelectedArea(null);
+      }
     });
   };
 
-  const calculateQuietScore = (place) => {
-    // 0: 매우 조용함, 1: 보통, 2: 시끄러움
-    return (place.crowdLevel * 0.6 + place.noiseLevel * 0.4);
-  };
-
-  const getHeatmapStyle = (quietScore, population = 0) => {
-    if (quietScore <= 0.7) {
-      return { 
-        color: '#87CEEB', // 하늘색 - 한적함
-        opacity: 0.4,
-        radius: Math.max(300, population / 20)
-      };
-    } else if (quietScore <= 1.3) {
-      return { 
-        color: '#90EE90', // 초록색 - 평균
-        opacity: 0.5,
-        radius: Math.max(400, population / 15)
-      };
+  const getHeatmapStyleByScore = (score, population = 0) => {
+    const color = getScoreColor(score);
+    let opacity = 0.4;
+    let radius = Math.max(300, population / 20);
+    
+    if (score >= 80) {
+      opacity = 0.3;
+    } else if (score >= 60) {
+      opacity = 0.4;
+    } else if (score >= 40) {
+      opacity = 0.5;
     } else {
-      return { 
-        color: '#FF6B6B', // 빨간색 - 붐빔
-        opacity: 0.6,
-        radius: Math.max(500, population / 10)
-      };
+      opacity = 0.6;
     }
+    
+    return { color, opacity, radius };
   };
 
   const createInfoWindowContent = (place) => {
-    const quietScore = calculateQuietScore(place);
-    const recommendation = getRecommendation(place, quietScore);
+    const recommendation = getRecommendation(place.quietScore);
     
     return `
-      <div style="padding:15px; min-width:200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-        <h4 style="margin:0 0 10px 0; color:#2c3e50;">${place.name}</h4>
-        <div style="margin-bottom:8px;">
-          <span style="background:${getHeatmapStyle(quietScore).color}; color:white; padding:2px 6px; border-radius:3px; font-size:0.8rem;">
-            ${quietScore <= 0.7 ? '🤫 조용함' : quietScore <= 1.3 ? '😐 보통' : '😵 시끄러움'}
+      <div style="
+        padding:15px; 
+        min-width:220px; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        position: relative;
+        z-index: 1001;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        border: none;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <h4 style="margin:0; color:#2c3e50; font-size: 1.2rem; flex: 1; font-weight: 600;">${place.name}</h4>
+          <div style="
+            background: ${getScoreColor(place.quietScore)};
+            color: white;
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-left: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          ">
+            ${getScoreEmoji(place.quietScore)} ${place.quietScore}점
+          </div>
+        </div>
+        
+        <div style="margin-bottom:12px;">
+          <span style="
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
+            color: #495057; 
+            padding:6px 12px; 
+            border-radius:8px; 
+            font-size:0.9rem;
+            font-weight: 500;
+            border: 1px solid #dee2e6;
+          ">
+            ${getScoreText(place.quietScore)}
           </span>
         </div>
-        ${place.population ? `<p style="margin:5px 0; font-size:0.9rem;">👥 ${place.population.toLocaleString()}명</p>` : ''}
-        <p style="margin:5px 0; font-size:0.9rem;">📍 ${recommendation}</p>
-        <div style="font-size:0.8rem; color:#666; margin-top:8px;">
-          소음: ${['낮음', '보통', '높음'][place.noiseLevel]} | 
-          혼잡: ${['낮음', '보통', '높음'][place.crowdLevel]}
+        
+        ${place.population ? `<p style="margin:8px 0; font-size:0.95rem; color:#6c757d; display: flex; align-items: center;"><span style="margin-right: 6px;">👥</span> ${place.population.toLocaleString()}명</p>` : ''}
+        <p style="margin:8px 0; font-size:0.95rem; color:#495057; font-weight: 500; display: flex; align-items: center;"><span style="margin-right: 6px;">📍</span> ${recommendation}</p>
+        
+        <div style="
+          font-size:0.85rem; 
+          color:#6c757d; 
+          margin-top:12px; 
+          padding-top: 12px; 
+          border-top: 1px solid #e9ecef;
+          display: flex;
+          justify-content: space-between;
+        ">
+          <span>소음: ${['낮음', '보통', '높음'][place.noiseLevel]}</span>
+          <span>혼잡: ${['낮음', '보통', '높음'][place.crowdLevel]}</span>
         </div>
       </div>
     `;
   };
 
-  const getRecommendation = (place, quietScore) => {
-    if (quietScore <= 0.7) {
-      return '산책하기 좋은 조용한 곳입니다';
-    } else if (quietScore <= 1.3) {
-      return '적당한 활기가 있는 곳입니다';
-    } else {
-      return '사람이 많고 활기찬 곳입니다';
-    }
+  const getRecommendation = (score) => {
+    if (score >= 80) return '매우 조용한 힐링 공간입니다';
+    if (score >= 60) return '산책하기 좋은 조용한 곳입니다';
+    if (score >= 40) return '적당한 활기가 있는 곳입니다';
+    if (score >= 20) return '사람이 많고 활기찬 곳입니다';
+    return '매우 붐비는 번화가입니다';
   };
 
   return (
@@ -178,21 +293,24 @@ const Map = ({ places, onPlaceClick }) => {
         right: '10px',
         zIndex: 1000,
         background: 'white',
-        borderRadius: '8px',
-        padding: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        borderRadius: '12px',
+        padding: '6px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        border: '1px solid #e9ecef'
       }}>
         <button
           onClick={() => setViewMode('heatmap')}
           style={{
-            padding: '6px 12px',
+            padding: '8px 16px',
             border: 'none',
-            borderRadius: '4px',
-            background: viewMode === 'heatmap' ? '#667eea' : '#f0f0f0',
-            color: viewMode === 'heatmap' ? 'white' : '#333',
-            fontSize: '0.8rem',
+            borderRadius: '8px',
+            background: viewMode === 'heatmap' ? '#667eea' : 'transparent',
+            color: viewMode === 'heatmap' ? 'white' : '#495057',
+            fontSize: '0.85rem',
             cursor: 'pointer',
-            marginRight: '4px'
+            marginRight: '4px',
+            fontWeight: '500',
+            transition: 'all 0.2s'
           }}
         >
           🗺️ 히트맵
@@ -200,13 +318,15 @@ const Map = ({ places, onPlaceClick }) => {
         <button
           onClick={() => setViewMode('markers')}
           style={{
-            padding: '6px 12px',
+            padding: '8px 16px',
             border: 'none',
-            borderRadius: '4px',
-            background: viewMode === 'markers' ? '#667eea' : '#f0f0f0',
-            color: viewMode === 'markers' ? 'white' : '#333',
-            fontSize: '0.8rem',
-            cursor: 'pointer'
+            borderRadius: '8px',
+            background: viewMode === 'markers' ? '#667eea' : 'transparent',
+            color: viewMode === 'markers' ? 'white' : '#495057',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            fontWeight: '500',
+            transition: 'all 0.2s'
           }}
         >
           📍 핀
@@ -221,23 +341,28 @@ const Map = ({ places, onPlaceClick }) => {
           left: '20px',
           zIndex: 1000,
           background: 'white',
-          borderRadius: '8px',
-          padding: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          fontSize: '0.8rem'
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: '0.85rem',
+          border: '1px solid #e9ecef'
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>혼잡도 범례</div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-            <div style={{ width: '12px', height: '12px', background: '#87CEEB', borderRadius: '50%', marginRight: '6px' }}></div>
-            한적함 (산책 추천)
+          <div style={{ fontWeight: '600', marginBottom: '12px', color: '#2c3e50' }}>조용함 지수</div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ width: '14px', height: '14px', background: '#4CAF50', borderRadius: '50%', marginRight: '8px' }}></div>
+            <span style={{ color: '#495057' }}>80~100점 (매우 조용함)</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-            <div style={{ width: '12px', height: '12px', background: '#90EE90', borderRadius: '50%', marginRight: '6px' }}></div>
-            보통
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ width: '14px', height: '14px', background: '#87CEEB', borderRadius: '50%', marginRight: '8px' }}></div>
+            <span style={{ color: '#495057' }}>60~79점 (조용함)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ width: '14px', height: '14px', background: '#90EE90', borderRadius: '50%', marginRight: '8px' }}></div>
+            <span style={{ color: '#495057' }}>40~59점 (보통)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: '12px', height: '12px', background: '#FF6B6B', borderRadius: '50%', marginRight: '6px' }}></div>
-            붐빔
+            <div style={{ width: '14px', height: '14px', background: '#FF6B6B', borderRadius: '50%', marginRight: '8px' }}></div>
+            <span style={{ color: '#495057' }}>0~39점 (시끄러움)</span>
           </div>
         </div>
       )}

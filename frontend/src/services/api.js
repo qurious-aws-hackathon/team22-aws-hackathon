@@ -48,16 +48,60 @@ export const fetchPlaces = async () => {
     // 기존 목업 데이터와 합치기
     const allPlaces = [...mockPlaces, ...seoulData];
     
-    // 조용한 곳 우선 정렬 (혼잡도 + 소음도 낮은 순)
-    return allPlaces.sort((a, b) => {
-      const scoreA = a.crowdLevel * 0.6 + a.noiseLevel * 0.4;
-      const scoreB = b.crowdLevel * 0.6 + b.noiseLevel * 0.4;
-      return scoreA - scoreB;
-    });
+    // 조용함 점수 계산 및 정렬
+    const placesWithScore = allPlaces.map(place => ({
+      ...place,
+      quietScore: calculateQuietScore(place)
+    }));
+    
+    // 조용한 곳 우선 정렬 (점수 높은 순)
+    return placesWithScore.sort((a, b) => b.quietScore - a.quietScore);
   } catch (error) {
     console.error('Failed to load places:', error);
-    return mockPlaces;
+    return mockPlaces.map(place => ({
+      ...place,
+      quietScore: calculateQuietScore(place)
+    }));
   }
+};
+
+// 조용함 점수 계산 (0~100점)
+export const calculateQuietScore = (place) => {
+  // 혼잡도와 소음도를 역산하여 조용함 점수 계산
+  const crowdScore = (2 - place.crowdLevel) * 50; // 0~100
+  const noiseScore = (2 - place.noiseLevel) * 50; // 0~100
+  
+  // 가중평균: 혼잡도 60%, 소음도 40%
+  const finalScore = Math.round(crowdScore * 0.6 + noiseScore * 0.4);
+  
+  return Math.max(0, Math.min(100, finalScore));
+};
+
+// 점수에 따른 텍스트 반환
+export const getScoreText = (score) => {
+  if (score >= 80) return '매우 조용함';
+  if (score >= 60) return '조용함';
+  if (score >= 40) return '보통';
+  if (score >= 20) return '시끄러움';
+  return '매우 시끄러움';
+};
+
+// 점수에 따른 색상 반환
+export const getScoreColor = (score) => {
+  if (score >= 80) return '#4CAF50'; // 진한 초록
+  if (score >= 60) return '#87CEEB'; // 하늘색
+  if (score >= 40) return '#90EE90'; // 연한 초록
+  if (score >= 20) return '#FFA726'; // 주황
+  return '#FF6B6B'; // 빨강
+};
+
+// 점수에 따른 이모지 반환
+export const getScoreEmoji = (score) => {
+  if (score >= 80) return '🤫';
+  if (score >= 60) return '😌';
+  if (score >= 40) return '😐';
+  if (score >= 20) return '😵';
+  return '🔊';
 };
 
 export const getLevelText = (level, type) => {
