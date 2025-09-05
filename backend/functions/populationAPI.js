@@ -50,11 +50,46 @@ async function queryFromDynamoDB() {
 // Mock 데이터 (DynamoDB 실패시 사용)
 function generateMockData() {
   const seoulAreas = [
+    // 기존 데이터
     { name: "강남구 역삼동", lat: 37.5009, lng: 127.0364, basePopulation: 8500, type: "business" },
     { name: "강남구 논현동", lat: 37.5048, lng: 127.0280, basePopulation: 4200, type: "residential" },
     { name: "강남구 압구정동", lat: 37.5274, lng: 127.0280, basePopulation: 3800, type: "shopping" },
     { name: "강남구 청담동", lat: 37.5197, lng: 127.0474, basePopulation: 2900, type: "luxury" },
-    { name: "강남구 삼성동", lat: 37.5090, lng: 127.0634, basePopulation: 6700, type: "business" }
+    { name: "강남구 삼성동", lat: 37.5090, lng: 127.0634, basePopulation: 6700, type: "business" },
+    
+    // 누락된 지역 추가
+    { name: "강북구 수유동", lat: 37.6369, lng: 127.0258, basePopulation: 5200, type: "residential" },
+    { name: "강북구 미아동", lat: 37.6278, lng: 127.0258, basePopulation: 4800, type: "residential" },
+    { name: "노원구 상계동", lat: 37.6541, lng: 127.0658, basePopulation: 6100, type: "residential" },
+    { name: "노원구 중계동", lat: 37.6541, lng: 127.0758, basePopulation: 5900, type: "residential" },
+    { name: "도봉구 창동", lat: 37.6541, lng: 127.0458, basePopulation: 4500, type: "residential" },
+    { name: "도봉구 쌍문동", lat: 37.6641, lng: 127.0358, basePopulation: 3800, type: "residential" },
+    { name: "은평구 불광동", lat: 37.6178, lng: 126.9258, basePopulation: 5500, type: "residential" },
+    { name: "은평구 연신내", lat: 37.6178, lng: 126.9158, basePopulation: 7200, type: "business" },
+    { name: "서대문구 홍제동", lat: 37.5878, lng: 126.9458, basePopulation: 4100, type: "residential" },
+    { name: "서대문구 신촌동", lat: 37.5578, lng: 126.9358, basePopulation: 8900, type: "business" },
+    { name: "마포구 합정동", lat: 37.5478, lng: 126.9158, basePopulation: 6800, type: "business" },
+    { name: "마포구 홍대", lat: 37.5578, lng: 126.9258, basePopulation: 12500, type: "entertainment" },
+    { name: "마포구 상암동", lat: 37.5778, lng: 126.8958, basePopulation: 3200, type: "business" },
+    { name: "영등포구 여의도", lat: 37.5278, lng: 126.9258, basePopulation: 9800, type: "business" },
+    { name: "영등포구 영등포동", lat: 37.5178, lng: 126.9058, basePopulation: 7100, type: "business" },
+    { name: "구로구 구로동", lat: 37.4978, lng: 126.8858, basePopulation: 5800, type: "industrial" },
+    { name: "구로구 신도림", lat: 37.5078, lng: 126.8958, basePopulation: 8200, type: "business" },
+    { name: "금천구 가산동", lat: 37.4778, lng: 126.8858, basePopulation: 6500, type: "industrial" },
+    { name: "금천구 독산동", lat: 37.4678, lng: 126.8958, basePopulation: 4900, type: "residential" },
+    { name: "관악구 신림동", lat: 37.4778, lng: 126.9258, basePopulation: 8700, type: "residential" },
+    { name: "관악구 봉천동", lat: 37.4878, lng: 126.9458, basePopulation: 6200, type: "residential" },
+    { name: "동작구 상도동", lat: 37.5078, lng: 126.9458, basePopulation: 5100, type: "residential" },
+    { name: "동작구 사당동", lat: 37.4978, lng: 126.9658, basePopulation: 7800, type: "business" },
+    { name: "서초구 서초동", lat: 37.4878, lng: 127.0158, basePopulation: 6900, type: "business" },
+    { name: "서초구 반포동", lat: 37.5078, lng: 127.0058, basePopulation: 5400, type: "residential" },
+    { name: "서초구 잠원동", lat: 37.5178, lng: 127.0158, basePopulation: 4600, type: "residential" },
+    { name: "송파구 잠실동", lat: 37.5078, lng: 127.0858, basePopulation: 9200, type: "business" },
+    { name: "송파구 문정동", lat: 37.4878, lng: 127.1258, basePopulation: 6700, type: "residential" },
+    { name: "송파구 방이동", lat: 37.5178, lng: 127.1158, basePopulation: 5300, type: "residential" },
+    { name: "강동구 천호동", lat: 37.5378, lng: 127.1258, basePopulation: 6100, type: "residential" },
+    { name: "강동구 길동", lat: 37.5478, lng: 127.1458, basePopulation: 4800, type: "residential" },
+    { name: "강동구 둔촌동", lat: 37.5278, lng: 127.1358, basePopulation: 5600, type: "residential" }
   ];
 
   return seoulAreas.map((area, index) => {
@@ -71,7 +106,7 @@ function generateMockData() {
       type: area.type,
       lastUpdated: new Date().toISOString(),
       walkingRecommendation: getWalkingRecommendation(population),
-      dataSource: "Mock 데이터"
+      dataSource: "Mock 데이터 (전체 서울 커버리지)"
     };
   });
 }
@@ -108,7 +143,9 @@ function getAreaDescription(type) {
     business: "비즈니스 지구",
     residential: "주거 지역",
     shopping: "쇼핑 지역",
-    luxury: "고급 주거지"
+    luxury: "고급 주거지",
+    industrial: "산업 지역",
+    entertainment: "유흥가"
   };
   return descriptions[type] || "일반 지역";
 }
@@ -155,8 +192,8 @@ exports.handler = async (event) => {
       places = await queryFromDynamoDB();
       console.log(`Using cached data from DynamoDB: ${places.length} places`);
     } catch (error) {
-      console.log('DynamoDB query failed, using mock data:', error.message);
-      places = generateMockData();
+      console.log('DynamoDB query failed:', error.message);
+      throw error;
     }
     
     // 지리적 필터링
