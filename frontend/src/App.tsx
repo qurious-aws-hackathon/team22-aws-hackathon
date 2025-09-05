@@ -3,7 +3,6 @@ import TopBar from './components/TopBar';
 import MainLayout from './components/MainLayout';
 import Map from './components/Map';
 import FloatingPlaceList from './components/FloatingPlaceList';
-import PlaceDetailPanel from './components/PlaceDetailPanel';
 import LoadingScreen from './components/LoadingScreen';
 import { api, type Spot } from './api';
 import './App.css';
@@ -32,10 +31,6 @@ function App() {
     setSelectedSpot(spot);
   };
 
-  const handleCloseDetail = () => {
-    setSelectedSpot(null);
-  };
-
   if (loading) {
     return <LoadingScreen message="데이터 로딩 중..." />;
   }
@@ -58,13 +53,6 @@ function App() {
           places={spots} 
           onPlaceClick={handleSpotClick} 
         />
-        
-        {selectedSpot && (
-          <PlaceDetailPanel 
-            spot={selectedSpot} 
-            onClose={handleCloseDetail} 
-          />
-        )}
       </MainLayout>
     </div>
   );

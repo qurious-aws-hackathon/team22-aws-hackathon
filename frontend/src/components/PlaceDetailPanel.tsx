@@ -4,11 +4,30 @@ import { getScoreColor, getScoreText, getScoreEmoji } from '../utils';
 interface PlaceDetailPanelProps {
   spot: Spot;
   onClose: () => void;
+  position?: { x: number; y: number };
 }
 
-const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose }) => {
+const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, position }) => {
+  const panelStyle: React.CSSProperties = {
+    position: 'absolute',
+    width: '300px',
+    background: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+    zIndex: 600,
+    overflow: 'hidden',
+    ...(position ? {
+      left: position.x - 150, // 패널 중앙이 핀 위치가 되도록
+      top: position.y - 20,   // 핀 위쪽에 표시
+      transform: 'none'
+    } : {
+      top: '20px',
+      right: '20px'
+    })
+  };
+
   return (
-    <div className="place-detail-panel">
+    <div style={panelStyle}>
       <div className="place-detail-header">
         <h3>{spot.name}</h3>
         <button className="close-btn" onClick={onClose}>✕</button>
