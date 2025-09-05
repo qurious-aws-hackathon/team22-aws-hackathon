@@ -1,5 +1,5 @@
 import { populationClient } from './config';
-import { PlacePopulation, RealtimePopulationResponse, GetPopulationRequest } from './models';
+import { PlacePopulation, RealtimePopulationData, RealtimePopulationResponse, GetPopulationRequest } from './models';
 
 export const populationApi = {
   async getPopulation(params?: GetPopulationRequest): Promise<PlacePopulation[]> {
@@ -8,31 +8,12 @@ export const populationApi = {
     return data.places || data;
   },
 
-  async getRealtimePopulation(params?: GetPopulationRequest): Promise<PlacePopulation[]> {
+  async getRealtimePopulation(params?: GetPopulationRequest): Promise<RealtimePopulationData[]> {
     const response = await populationClient.get('/realtime-population', { params });
     const data: RealtimePopulationResponse = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
     
     // 서울시 실시간 도시데이터 형태를 기존 형태로 변환
-    return data.data?.map(item => ({
-      place_id: item.area_code,
-      current: 'latest',
-      geohash: `${item.lat}_${item.lng}`,
-      lastUpdated: item.update_time,
-      name: item.area_name,
-      lat: item.lat,
-      lng: item.lng,
-      population: Math.floor((item.population_min + item.population_max) / 2),
-      congestLevel: item.congest_level,
-      noiseLevel: this.estimateNoiseLevel(item.congest_level, item.population_min, item.population_max),
-      walkingRecommendation: item.congest_message,
-      dataSource: '서울시 실시간 도시데이터',
-      category: item.category,
-      type: 'realtime',
-      areaCode: item.area_code,
-      updateTime: item.update_time,
-      populationMin: item.population_min,
-      populationMax: item.population_max
-    })) || [];
+    return data.data;
   },
 
   estimateNoiseLevel(congest_level: string, min_pop: number, max_pop: number): number {

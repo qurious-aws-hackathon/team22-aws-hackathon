@@ -57,7 +57,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
     );
   }
 
-  // 모달 스타일
+  // 모달 스타일 - Header 디자인 적용
   return (
     <div style={{
       position: 'fixed',
@@ -65,51 +65,81 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000
+      zIndex: 3000,
+      backdropFilter: 'blur(4px)'
     }}>
       <div style={{
-        backgroundColor: 'white',
-        padding: '24px',
-        borderRadius: '12px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        background: type === 'success' 
+          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+        padding: '32px',
+        borderRadius: '16px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         maxWidth: '400px',
         width: '90%',
-        textAlign: 'center'
+        textAlign: 'center',
+        color: 'white',
+        animation: 'alertSlideIn 0.3s ease-out'
       }}>
         <div style={{
-          fontSize: '48px',
-          marginBottom: '16px'
+          fontSize: '56px',
+          marginBottom: '20px',
+          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
         }}>
           {icon}
         </div>
         <div style={{
-          fontSize: '16px',
-          color: '#333',
-          marginBottom: '24px',
-          lineHeight: '1.5'
+          fontSize: '18px',
+          marginBottom: '28px',
+          lineHeight: '1.6',
+          fontWeight: '500',
+          textShadow: '0 1px 2px rgba(0,0,0,0.2)'
         }}>
           {message}
         </div>
         <button
           onClick={onClose}
           style={{
-            backgroundColor: bgColor,
+            backgroundColor: 'rgba(255,255,255,0.2)',
             color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '6px',
-            fontSize: '14px',
-            fontWeight: '500',
+            border: '2px solid rgba(255,255,255,0.3)',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '600',
             cursor: 'pointer',
-            minWidth: '80px'
+            minWidth: '100px',
+            backdropFilter: 'blur(10px)',
+            transition: 'all 0.2s ease',
+            textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+            e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
           확인
         </button>
+        <style>{`
+          @keyframes alertSlideIn {
+            from { 
+              opacity: 0; 
+              transform: scale(0.8) translateY(-20px); 
+            }
+            to { 
+              opacity: 1; 
+              transform: scale(1) translateY(0); 
+            }
+          }
+        `}</style>
       </div>
     </div>
   );

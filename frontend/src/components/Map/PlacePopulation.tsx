@@ -22,7 +22,12 @@ const PlacePopulation: React.FC<PlacePopulationProps> = ({ map, congestionData }
   const infoWindowRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!map || !congestionData.length || !(window as any).kakao?.maps?.Circle) return;
+    console.log('PlacePopulation 렌더링:', { map: !!map, dataLength: congestionData.length });
+    
+    if (!map || !(window as any).kakao?.maps?.Circle) {
+      console.log('지도 또는 Kakao API 없음');
+      return;
+    }
 
     // 기존 원들 제거
     circlesRef.current.forEach(circle => {
@@ -44,6 +49,11 @@ const PlacePopulation: React.FC<PlacePopulationProps> = ({ map, congestionData }
       } catch (error) {
         console.error('InfoWindow 제거 실패:', error);
       }
+    }
+
+    if (!congestionData.length) {
+      console.log('혼잡도 데이터 없음');
+      return;
     }
 
     // 중복 제거

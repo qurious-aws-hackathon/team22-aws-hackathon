@@ -4,6 +4,7 @@ import PinRegistrationModal from './PinRegistrationModal';
 import Alert from './Alert';
 import Loading from './Loading';
 import PlacePopulation from './Map/PlacePopulation';
+import { RealtimePopulationData } from '../api/models/population';
 import { useAlert } from '../hooks/useAlert';
 import { useLoading } from '../hooks/useLoading';
 
@@ -32,7 +33,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const crowdPolygonsRef = useRef<any[]>([]);
   const noiseCirclesRef = useRef<any[]>([]);
   const [isLocating, setIsLocating] = useState(false);
-  const [populationData, setPopulationData] = useState<any[]>([]);
+  const [populationData, setPopulationData] = useState<RealtimePopulationData[]>([]);
   const [showCongestion, setShowCongestion] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     visible: false,
@@ -43,12 +44,31 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   });
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalData, setPinModalData] = useState({ lat: 0, lng: 0 });
-  const { alert, showErrorAlert, closeAlert } = useAlert();
-  const { loading, withLoading } = useLoading();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'success',
+    message: ''
+  });
+
+  const showAlert = (type: 'success' | 'error', message: string) => {
+    setAlert({ isOpen: true, type, message });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     initializeMap();
-    loadPopulationData(); // 초기 로드만
+    // 지도 초기화 후 혼잡도 데이터 로드
+    setTimeout(() => {
+      loadPopulationData();
+    }, 1000);
   }, []);
 
   useEffect(() => {
@@ -156,10 +176,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   const loadPopulationData = async () => {
     try {
-      const response = await withLoading(
-        () => api.population.getRealtimePopulation(),
-        { message: '실시간 인구밀도 데이터 로딩 중...', showLoading: true }
-      );
+      console.log('혼잡도 데이터 로딩 시작...');
+      const response = await api.population.getRealtimePopulation();
       
       let populationArray = [];
       if (response && (response as any).data && Array.isArray((response as any).data)) {
@@ -168,11 +186,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         populationArray = response;
       }
       
+      console.log('혼잡도 데이터 로딩 완료:', populationArray.length, '개');
       setPopulationData(populationArray);
       
     } catch (error) {
       console.error('실시간 인구밀도 데이터 로드 실패:', error);
-      showErrorAlert('실시간 인구밀도 API 연결에 실패했습니다.');
       setPopulationData([]);
     }
   };
@@ -617,6 +635,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     isNoiseRecorded: boolean;
   }) => {
     try {
+      setIsRegistering(true);
+      
       // 조용함 점수 계산 (소음도 기반)
       const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
       
@@ -636,10 +656,14 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       console.log('API 호출 데이터:', spotData);
       
-      // API 호출
-      await api.spots.createSpot(spotData);
+      // API 호출 - 실제 네트워크 요청
+      const response = await api.spots.createSpot(spotData);
+      console.log('API 응답:', response);
       
-      window.alert(`"${data.name}" 장소가 성공적으로 등록되었습니다!`);
+      // 성공 시 모달 닫기
+      setShowPinModal(false);
+      
+      showAlert('success', `"${data.name}" 장소가 성공적으로 등록되었습니다!`);
       
       // 스팟 목록 새로고침
       if (onSpotsUpdate) {
@@ -648,7 +672,9 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       
     } catch (error) {
       console.error('스팟 등록 실패:', error);
-      window.alert('스팟 등록에 실패했습니다. 다시 시도해주세요.');
+      showAlert('error', '스팟 등록에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -788,6 +814,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         onClose={() => setShowPinModal(false)}
         lat={pinModalData.lat}
         lng={pinModalData.lng}
+        isLoading={isRegistering}
+        onAlert={showAlert}
         onSubmit={handlePinRegistration}
       />
       
@@ -796,27 +824,24 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         message={alert.message}
         isOpen={alert.isOpen}
         onClose={closeAlert}
-        autoClose={alert.autoClose}
-      />
-      
-      <Loading
-        isOpen={loading.isOpen}
-        message={loading.message}
       />
       
       {/* Congestion Overlay */}
-      {showCongestion && populationData.length > 0 && (
+      {showCongestion && (
         <PlacePopulation 
           map={mapInstance.current} 
-          congestionData={populationData.map(data => ({
-            lat: data.lat,
-            lng: data.lng,
-            population: data.population,
-            noiseLevel: data.noiseLevel,
-            crowdLevel: data.crowdLevel,
-            address: `${data.category || ''} - ${data.name}`,
-            name: data.name
-          }))}
+          congestionData={populationData.map(data => {
+            console.log('혼잡도 데이터 매핑:', data);
+            return {
+              lat: data.lat,
+              lng: data.lng,
+              population: data.population_max,
+              noiseLevel: 0,
+              congestLevel: data.congest_level,
+              address: data.area_name,
+              name: data.area_name
+            };
+          })}
         />
       )}
     </div>

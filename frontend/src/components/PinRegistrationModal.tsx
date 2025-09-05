@@ -5,6 +5,8 @@ interface PinRegistrationModalProps {
   onClose: () => void;
   lat: number;
   lng: number;
+  isLoading?: boolean;
+  onAlert?: (type: 'success' | 'error', message: string) => void;
   onSubmit: (data: {
     name: string;
     description: string;
@@ -21,6 +23,8 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   onClose,
   lat,
   lng,
+  isLoading = false,
+  onAlert,
   onSubmit
 }) => {
   const [formData, setFormData] = useState({
@@ -174,7 +178,9 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
 
   const copyAddress = () => {
     navigator.clipboard.writeText(address);
-    alert('주소가 복사되었습니다!');
+    if (onAlert) {
+      onAlert('success', '주소가 복사되었습니다!');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -237,7 +243,14 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 3000
-    }}>
+    }}
+    onClick={(e) => {
+      if (e.target === e.currentTarget && !isLoading) {
+        stopNoiseMeasurement();
+        onClose();
+      }
+    }}
+    >
       <div style={{
         background: 'white',
         borderRadius: '12px',
@@ -256,15 +269,19 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           <h2 style={{ margin: 0, color: '#333' }}>🤫 쉿플레이스 등록</h2>
           <button
             onClick={() => {
-              stopNoiseMeasurement();
-              onClose();
+              if (!isLoading) {
+                stopNoiseMeasurement();
+                onClose();
+              }
             }}
+            disabled={isLoading}
             style={{
               background: 'none',
               border: 'none',
               fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#666'
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              color: isLoading ? '#ccc' : '#666',
+              opacity: isLoading ? 0.5 : 1
             }}
           >
             ✕
@@ -466,40 +483,71 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => {
-                stopNoiseMeasurement();
-                onClose();
+                if (!isLoading) {
+                  stopNoiseMeasurement();
+                  onClose();
+                }
               }}
               style={{
                 flex: 1,
                 padding: '0.75rem',
                 border: '1px solid #ddd',
                 borderRadius: '8px',
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem'
+                background: isLoading ? '#f5f5f5' : 'white',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                fontSize: '1rem',
+                color: isLoading ? '#ccc' : '#333',
+                opacity: isLoading ? 0.6 : 1
               }}
             >
               취소
             </button>
             <button
               type="submit"
+              disabled={isLoading}
               style={{
                 flex: 1,
                 padding: '0.75rem',
                 border: 'none',
                 borderRadius: '8px',
-                background: '#667eea',
+                background: isLoading ? '#ccc' : '#667eea',
                 color: 'white',
-                cursor: 'pointer',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
                 fontSize: '1rem',
-                fontWeight: '600'
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
               }}
             >
-              등록
+              {isLoading ? (
+                <>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid #fff',
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  등록 중...
+                </>
+              ) : (
+                '등록'
+              )}
             </button>
           </div>
         </form>
+        
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </div>
   );
