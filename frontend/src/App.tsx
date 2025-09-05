@@ -4,6 +4,7 @@ import MainLayout from './components/MainLayout';
 import Map from './components/Map';
 import FloatingPlaceList from './components/FloatingPlaceList';
 import LoadingScreen from './components/LoadingScreen';
+import ChatBot from './components/ChatBot';
 import { api, type Spot } from './api';
 import './App.css';
 
@@ -54,6 +55,9 @@ function App() {
           onPlaceClick={handleSpotClick} 
         />
       </MainLayout>
+
+      {/* ChatBot - Non-intrusive floating component */}
+      <ChatBot />
     </div>
   );
 }
