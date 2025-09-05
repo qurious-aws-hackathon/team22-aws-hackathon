@@ -12,24 +12,31 @@ interface PlaceDetailPanelProps {
 }
 
 const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, position, onDelete }) => {
+  console.log('PlaceDetailPanel spot data:', spot);
+  console.log('spot.user_nickname:', spot.user_nickname);
+  
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [nickname, setNickname] = useState('');
+  const [nickname, setNickname] = useState(() => {
+    const currentUser = authApi.getCurrentUser();
+    return currentUser?.nickname || '';
+  });
   const [likeCount, setLikeCount] = useState(spot.like_count || 0);
   const [dislikeCount, setDislikeCount] = useState(spot.dislike_count || 0);
   const { withLoading } = useLoading();
 
   useEffect(() => {
-    loadComments();
+    // loadComments(); // 임시 비활성화
   }, [spot.id]);
 
   const loadComments = async () => {
     try {
-      const commentsData = await api.comments.getComments({ 
-        spot_id: spot.id,
-        limit: 10
-      });
-      setComments(commentsData);
+      // const commentsData = await api.comments.getComments({ 
+      //   spot_id: spot.id,
+      //   limit: 10
+      // });
+      // setComments(commentsData);
+      setComments([]); // 빈 배열로 설정
     } catch (error) {
       console.error('댓글 로딩 실패:', error);
     }
@@ -86,22 +93,8 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim() || !nickname.trim()) return;
-    
-    try {
-      await withLoading(async () => {
-        await api.comments.createComment({
-          spot_id: spot.id,
-          content: newComment.trim(),
-          nickname: nickname.trim()
-        });
-        await loadComments();
-      }, '댓글 등록 중...');
-      
-      setNewComment('');
-    } catch (error) {
-      console.error('댓글 등록 실패:', error);
-    }
+    // 임시 비활성화
+    alert('댓글 기능은 임시 비활성화되었습니다.');
   };
 
   const panelStyle: React.CSSProperties = {
@@ -151,11 +144,17 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
       <div style={{ maxHeight: 'calc(80vh - 60px)', overflowY: 'auto' }}>
         {/* 사진 영역 */}
-        {spot.image_url && (
-          <div style={{ width: '100%', height: '200px', overflow: 'hidden' }}>
+        {spot.image_url ? (
+          <div style={{ width: '100%', height: '200px', overflow: 'hidden', backgroundColor: '#f5f5f5' }}>
             <img
               src={spot.image_url}
               alt={spot.name}
+              onError={(e) => {
+                console.error('이미지 로드 실패:', spot.image_url);
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px;">📷 이미지를 불러올 수 없습니다</div>';
+              }}
+              onLoad={() => console.log('이미지 로드 성공:', spot.image_url)}
               style={{
                 width: '100%',
                 height: '100%',
@@ -163,19 +162,42 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
               }}
             />
           </div>
+        ) : (
+          <div style={{ 
+            width: '100%', 
+            height: '120px', 
+            backgroundColor: '#f8f9fa', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            color: '#999',
+            fontSize: '14px',
+            borderBottom: '1px solid #eee'
+          }}>
+            📷 등록된 사진이 없습니다
+          </div>
         )}
 
         {/* 제목 */}
         <div style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <h2 style={{ 
-              margin: 0, 
-              fontSize: '20px', 
-              fontWeight: '700',
-              color: '#333'
-            }}>
-              {spot.name}
-            </h2>
+            <div>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '20px', 
+                fontWeight: '700',
+                color: '#333'
+              }}>
+                {spot.name}
+              </h2>
+              <div style={{
+                fontSize: '12px',
+                color: '#888',
+                marginTop: '4px'
+              }}>
+👤 작성자: {spot.user_nickname || '익명'}
+              </div>
+            </div>
             {(() => {
               const currentUser = authApi.getCurrentUser();
               const canDelete = currentUser && (spot.user_id === currentUser.id || spot.user_id === 'anonymous');
@@ -284,20 +306,6 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
             {/* 댓글 입력 */}
             <div style={{ marginBottom: '16px' }}>
-              <input
-                type="text"
-                placeholder="닉네임"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  marginBottom: '8px'
-                }}
-              />
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
@@ -315,14 +323,14 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
                 />
                 <button
                   onClick={handleAddComment}
-                  disabled={!newComment.trim() || !nickname.trim()}
+                  disabled={!newComment.trim()}
                   style={{
                     padding: '8px 16px',
                     border: 'none',
                     borderRadius: '6px',
-                    background: (!newComment.trim() || !nickname.trim()) ? '#ccc' : '#667eea',
+                    background: !newComment.trim() ? '#ccc' : '#667eea',
                     color: 'white',
-                    cursor: (!newComment.trim() || !nickname.trim()) ? 'not-allowed' : 'pointer',
+                    cursor: !newComment.trim() ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '600'
                   }}

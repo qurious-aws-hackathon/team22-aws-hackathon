@@ -65,7 +65,7 @@
   top: 20px;
   left: 20px;
   width: 320px;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 220px);
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 16px;
@@ -98,8 +98,44 @@
   font-weight: 500;
 }
 
+.filter-tabs {
+  display: flex;
+  padding: 0.5rem 1rem;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.filter-tab {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.filter-tab:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.filter-tab.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.filter-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .place-items {
-  max-height: 400px;
+  max-height: calc(100vh - 320px);
   overflow-y: auto;
   padding: 0.5rem;
 }
@@ -136,31 +172,86 @@
 .place-category {
   font-size: 0.8rem;
   color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.place-details {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.noise-level, .likes, .dislikes {
+  font-size: 0.7rem;
+  color: #888;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.dislikes {
+  background: rgba(255, 71, 87, 0.1);
+}
+
+.badges {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.has-photo {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  background: rgba(255, 193, 7, 0.2);
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.live-badge {
+  font-size: 0.7rem;
+  background: rgba(34, 197, 94, 0.2);
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  line-height: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .place-score {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
+  min-width: 60px;
 }
 
 .score-badge {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .score-text {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: #666;
   text-align: center;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* 장소 상세 패널 */

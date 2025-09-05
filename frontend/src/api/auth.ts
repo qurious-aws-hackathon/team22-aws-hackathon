@@ -4,29 +4,23 @@ import { LoginRequest, RegisterRequest, AuthResponse, User } from './models/user
 export const authApi = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      // 임시: 로컬 스토리지 기반 로그인
-      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = existingUsers.find((u: any) => 
-        u.nickname === credentials.nickname && u.password === credentials.password
-      );
+      const response = await fetch('https://api.shitplace.net/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials)
+      });
       
-      if (!user) {
-        return {
-          success: false,
-          message: '아이디 또는 비밀번호가 잘못되었습니다.'
-        };
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        // 로컬 스토리지에 사용자 정보 저장
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('authToken', data.token || 'temp-token');
       }
       
-      // 로컬 스토리지에 사용자 정보 저장
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      localStorage.setItem('authToken', 'temp-token');
-      
-      return {
-        success: true,
-        message: '로그인 성공',
-        user: user,
-        token: 'temp-token'
-      };
+      return data;
     } catch (error: any) {
       console.error('Login API Error:', error);
       return {
@@ -38,34 +32,23 @@ export const authApi = {
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
-      // 임시: 로컬 스토리지 기반 회원가입
-      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const response = await fetch('https://api.shitplace.net/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      });
       
-      // 중복 확인
-      if (existingUsers.find((u: any) => u.nickname === userData.nickname)) {
-        return {
-          success: false,
-          message: '이미 사용 중인 아이디입니다.'
-        };
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        // 로컬 스토리지에 사용자 정보 저장
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('authToken', data.token || 'temp-token');
       }
       
-      // 새 사용자 추가
-      const newUser = {
-        id: Date.now().toString(),
-        nickname: userData.nickname,
-        password: userData.password, // 실제로는 해시화해야 함
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      existingUsers.push(newUser);
-      localStorage.setItem('users', JSON.stringify(existingUsers));
-      
-      return {
-        success: true,
-        message: '회원가입이 완료되었습니다.',
-        user: newUser
-      };
+      return data;
     } catch (error: any) {
       console.error('Register API Error:', error);
       return {

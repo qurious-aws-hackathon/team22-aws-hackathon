@@ -19,6 +19,24 @@ function App() {
   const [spots, setSpots] = useState<Spot[]>([]);
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    // 사용자 위치 가져오기
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('위치 정보를 가져올 수 없습니다:', error);
+        }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     // 새로고침 시 로그인 상태 확인
@@ -205,7 +223,8 @@ function App() {
           
           <FloatingPlaceList 
             places={spots} 
-            onPlaceClick={handleSpotClick} 
+            onPlaceClick={handleSpotClick}
+            userLocation={userLocation || undefined}
           />
         </MainLayout>
 

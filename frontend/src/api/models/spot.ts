@@ -11,6 +11,8 @@ export interface Spot {
   quiet_rating: number;
   category?: string;
   user_id?: string;
+  user_nickname?: string;
+  image_url?: string;
   created_at: string;
   updated_at?: string;
   like_count: number;
