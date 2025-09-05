@@ -388,12 +388,13 @@ API 요청 → DynamoDB Scan → 필터링 → 정렬 → 응답
 - **ImageMetadata**: 이미지 업로드 메타데이터
 - **FileMetadata**: 파일 업로드 메타데이터 (빈 테이블)
 - **RealtimeCrowdData**: 실시간 혼잡도 데이터 (빈 테이블)
+- **Spots**: 사용자 등록 장소 (LocationIndex GSI 포함)
+- **Comments**: 장소별 댓글 (SpotCommentsIndex GSI 포함)
+- **SpotLikes**: 좋아요/싫어요
+- **Users**: 사용자 정보 (NicknameIndex GSI 포함, 100개 더미 데이터)
 
 ### ❌ 구현 필요
-- **Spots**: 사용자 등록 장소
-- **Comments**: 장소별 댓글
-- **SpotLikes**: 좋아요/싫어요
-- **Users**: 사용자 정보
+- 없음 (모든 테이블 구현 완료)
 
 ## 성능 특성
 
@@ -417,17 +418,22 @@ API 요청 → DynamoDB Scan → 필터링 → 정렬 → 응답
 
 ## 결론
 
-현재 DynamoDB 구성은 **기본 인프라는 완성**되었으나, **Spot 관련 기능은 미구현** 상태입니다.
+현재 DynamoDB 구성은 **완전한 시스템**으로 구축되었으며, 쉿플레이스 프로젝트의 모든 요구사항을 충족합니다.
 
 **구현 완료:**
 - 🚀 서울시 실시간 인구 데이터 시스템
 - 📸 이미지 업로드 시스템
 - 📊 실시간 혼잡도 데이터 구조
-
-**구현 필요:**
-- 📍 Spot 관리 시스템 (테이블 + Lambda + API)
+- 📍 완전한 Spot 관리 시스템 (테이블 + Lambda + API)
 - 💬 댓글 시스템
 - 👍 좋아요/싫어요 시스템
+- 👤 사용자 관리 시스템 (100개 더미 데이터 포함)
+
+**데이터 현황:**
+- **총 테이블**: 8개 (모두 ACTIVE)
+- **더미 데이터**: Users 100개
+- **실제 데이터**: PlacesCurrent 100개 행정동, ImageMetadata 1개
+- **월 예상 비용**: ~$3-5 (모든 테이블 포함)
 
 ### 1. PlacesCurrent (현재 데이터 테이블)
 
@@ -841,12 +847,15 @@ aws cloudwatch get-metric-statistics \
 | `like_type` | String | 좋아요 타입 ("like" 또는 "dislike") |
 | `created_at` | String | 생성 시간 (ISO 8601) |
 
-### 6. Users (사용자 정보)
+### 6. Users (사용자 정보) ✅
 
 #### 기본 정보
 - **테이블명**: `Users`
+- **생성일**: 2025-09-05T17:58:51.770+09:00
+- **상태**: ACTIVE
 - **빌링 모드**: PAY_PER_REQUEST (온디맨드)
-- **용도**: 향후 회원가입 기능용
+- **Warm Throughput**: 읽기 12,000/초, 쓰기 4,000/초
+- **용도**: 사용자 정보 관리
 
 #### 키 스키마
 ```json
@@ -865,7 +874,7 @@ aws cloudwatch get-metric-statistics \
 |--------|------|------|
 | `id` | String | UUID (Primary Key) |
 | `nickname` | String | 사용자명 (고유, 최대 50자) |
-| `password` | String | 암호화된 비밀번호 |
+| `password` | String | 암호화된 비밀번호 (SHA256) |
 | `created_at` | String | 생성 시간 (ISO 8601) |
 | `updated_at` | String | 수정 시간 (ISO 8601) |
 
@@ -881,9 +890,19 @@ aws cloudwatch get-metric-statistics \
   ],
   "Projection": {
     "ProjectionType": "KEYS_ONLY"
+  },
+  "WarmThroughput": {
+    "ReadUnitsPerSecond": 12000,
+    "WriteUnitsPerSecond": 4000
   }
 }
 ```
+
+#### 현재 데이터 현황
+- **저장된 사용자**: 100개 (더미 데이터)
+- **닉네임 예시**: "조용한산책자", "별빛여행자", "부드러운바람" 등
+- **비밀번호**: SHA256 해시 (password1~password100)
+- **생성일 범위**: 2024년 ~ 2025년 (랜덤)
 
 ### 7. ImageMetadata (이미지 메타데이터)
 
