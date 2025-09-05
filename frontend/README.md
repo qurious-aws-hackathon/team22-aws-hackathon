@@ -199,7 +199,7 @@ gantt
     axisFormat %H:%M
     
     section API 연동
-    백엔드 API 클라이언트        :api1, 06:00, 06:30
+    Lambda API 클라이언트       :api1, 06:00, 06:30
     실시간 데이터 폴링          :api2, 06:30, 07:00
     
     section 상태 관리
@@ -208,7 +208,7 @@ gantt
 ```
 
 **작업 내용:**
-- [ ] Axios 기반 API 클라이언트 구현
+- [ ] Axios 기반 API 클라이언트 구현 (Lambda API Gateway 연동)
 - [ ] RTK Query를 통한 API 상태 관리
 - [ ] 실시간 데이터 폴링 (30초 간격)
 - [ ] WebSocket 연결 (실시간 업데이트, 선택사항)
@@ -216,11 +216,16 @@ gantt
 
 **API 클라이언트:**
 ```typescript
-// RTK Query API 정의
+// RTK Query API 정의 (Lambda API Gateway 연동)
 export const placesApi = createApi({
   reducerPath: 'placesApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.VITE_API_BASE_URL,
+    baseUrl: process.env.VITE_API_BASE_URL, // API Gateway URL
+    prepareHeaders: (headers) => {
+      // API 키 또는 Cognito 토큰 추가
+      headers.set('x-api-key', process.env.VITE_API_KEY);
+      return headers;
+    },
   }),
   tagTypes: ['Place', 'NoiseData', 'CrowdData'],
   endpoints: (builder) => ({
@@ -402,7 +407,8 @@ npm --version
 ### 환경 변수
 ```env
 # .env
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=https://your-api-id.execute-api.ap-northeast-2.amazonaws.com/dev
+VITE_API_KEY=your_api_gateway_key
 VITE_KAKAO_MAP_API_KEY=your_kakao_api_key
 VITE_APP_TITLE=쉿플레이스
 ```

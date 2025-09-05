@@ -4,9 +4,9 @@
 
 ## 🎯 프로젝트 개요
 
-실시간 소음도와 혼잡도 데이터를 기반으로 조용하고 한적한 장소를 추천하는 지도 서비스입니다.
+실시간 소음도와 혼잡도 데이터를 기반으로 조용하고 한적한 장소를 추천하는 서버리스 지도 서비스입니다.
 
-## 🏗️ 아키텍처
+## 🏗️ 서버리스 아키텍처
 
 ```mermaid
 graph TB
@@ -16,45 +16,48 @@ graph TB
         A --> D[Filter Component]
     end
     
-    subgraph "Backend (Spring Boot)"
-        E[API Gateway] --> F[Place Service]
-        E --> G[Noise Service]
-        E --> H[Crowd Service]
+    subgraph "API Layer"
+        E[API Gateway] --> F[Place Lambda]
+        E --> G[Noise Lambda]
+        E --> H[Crowd Lambda]
+        E --> I[Search Lambda]
     end
     
     subgraph "AWS Services"
-        I[DynamoDB] --> J[Places Table]
-        I --> K[NoiseData Table]
-        I --> L[CrowdData Table]
-        M[Lambda] --> N[Data Collection]
-        O[S3] --> P[Static Assets]
-        Q[CloudFront] --> A
+        J[DynamoDB] --> K[Places Table]
+        J --> L[NoiseData Table]
+        J --> M[CrowdData Table]
+        N[EventBridge] --> O[Data Collection Lambda]
+        P[S3] --> Q[Static Assets]
+        R[CloudFront] --> A
     end
     
     subgraph "External APIs"
-        R[서울 실시간도시데이터]
-        S[카카오 로컬 API]
-        T[기상청 API]
+        S[서울 실시간도시데이터]
+        T[카카오 로컬 API]
+        U[기상청 API]
     end
     
     A --> E
-    F --> I
-    G --> I
-    H --> I
-    N --> R
-    N --> S
-    N --> T
-    N --> I
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+    O --> S
+    O --> T
+    O --> U
+    O --> J
 ```
 
-## 🛠️ 기술 스택
+## 🛠️ 서버리스 기술 스택
 
-### Backend
-- **Framework**: Spring Boot 3.x
+### Backend (Serverless)
+- **Runtime**: Node.js 18 (Lambda)
+- **Framework**: AWS Lambda + API Gateway
 - **Database**: AWS DynamoDB
 - **Authentication**: AWS Cognito
 - **File Storage**: AWS S3
-- **Serverless**: AWS Lambda
+- **Scheduling**: AWS EventBridge
 - **Infrastructure**: AWS CDK (IaC)
 
 ### Frontend
@@ -65,11 +68,12 @@ graph TB
 - **Build Tool**: Vite
 
 ### AWS Services
-- **Compute**: EC2, Lambda
+- **Compute**: AWS Lambda
 - **Database**: DynamoDB
 - **Storage**: S3
 - **CDN**: CloudFront
 - **API**: API Gateway
+- **Scheduling**: EventBridge
 - **Monitoring**: CloudWatch
 - **Infrastructure**: CDK
 
@@ -77,7 +81,7 @@ graph TB
 
 ```
 shitplace/
-├── backend/           # Spring Boot API 서버
+├── backend/           # AWS Lambda Functions
 ├── frontend/          # React 웹 애플리케이션
 ├── infrastructure/    # AWS CDK 코드
 └── docs/             # 프로젝트 문서
@@ -87,18 +91,17 @@ shitplace/
 
 | 시간 | 백엔드 | 프론트엔드 |
 |------|--------|------------|
-| 0-2h | 프로젝트 설정 + DynamoDB 스키마 | React 프로젝트 설정 + 기본 라우팅 |
-| 2-4h | 기본 API 개발 (CRUD) | 지도 컴포넌트 + 기본 UI |
+| 0-2h | Lambda 함수 설정 + DynamoDB 스키마 | React 프로젝트 설정 + 기본 라우팅 |
+| 2-4h | 기본 API Lambda 개발 (CRUD) | 지도 컴포넌트 + 기본 UI |
 | 4-6h | 데이터 수집 Lambda 개발 | 검색/필터 기능 구현 |
 | 6-8h | 소음/혼잡도 분석 로직 | 실시간 데이터 연동 |
-| 8-10h | AWS 서비스 통합 | UI/UX 개선 |
-| 10-12h | 배포 + 테스트 | 배포 + 최적화 |
+| 8-10h | API Gateway 통합 | UI/UX 개선 |
+| 10-12h | CDK 배포 + 테스트 | 배포 + 최적화 |
 
 ## 🚀 시작하기
 
 ### 사전 요구사항
 - Node.js 18+
-- Java 17+
 - AWS CLI 설정
 - AWS CDK 설치
 
@@ -113,7 +116,8 @@ cd shitplace
 2. **백엔드 설정**
 ```bash
 cd backend
-./gradlew bootRun
+npm install
+npm run deploy:dev
 ```
 
 3. **프론트엔드 설정**
