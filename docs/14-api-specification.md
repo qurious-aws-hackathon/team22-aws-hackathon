@@ -1001,104 +1001,62 @@ Content-Type: multipart/form-data
 }
 ```
 
-### 11. AI 추천 시스템 ✅
+### 12. 좋아요/싫어요 상태 확인 ✅
 
-#### POST /recommendations
+#### GET /spots/{spotId}/like-status
 
-AI 기반 장소 추천을 제공합니다. 기존 스팟 데이터와 AI 일반 장소 검색을 결합한 듀얼 추천 시스템입니다.
+특정 사용자가 해당 스팟에 좋아요 또는 싫어요를 남겼는지 확인합니다.
 
 **요청**
 ```http
-POST /recommendations
-Content-Type: application/json
-
-{
-  "lat": 37.5665,
-  "lng": 126.9780,
-  "radius": 2000,
-  "category": "카페",
-  "preferences": {
-    "quiet_level": "high",
-    "crowd_preference": "low"
-  }
-}
+GET /spots/e32aed8d-4b15-4bcc-a44f-383d49c37d13/like-status?user_id=test-user-123
 ```
 
-**GET 방식도 지원**
-```http
-GET /recommendations?lat=37.5665&lng=126.9780&radius=2000&category=카페
-```
+**쿼리 파라미터**
 
-**요청 파라미터**
-
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|---------|------|------|--------|------|
-| `lat` | number | 필수 | - | 중심점 위도 |
-| `lng` | number | 필수 | - | 중심점 경도 |
-| `radius` | integer | 선택 | 2000 | 검색 반경 (미터) |
-| `category` | string | 선택 | - | 카테고리 필터 |
-| `preferences` | object | 선택 | {} | 사용자 선호도 |
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| `user_id` | string | 필수 | 확인할 사용자 ID |
 
 **응답**
+
+**상호작용이 있는 경우 (200 OK)**
 ```json
 {
-  "recommendations": {
-    "pin_based": {
-      "spot": {
-        "id": "e32aed8d-4b15-4bcc-a44f-383d49c37d13",
-        "name": "맑은 하늘 카페",
-        "lat": 37.546849,
-        "lng": 127.050037,
-        "category": "카페",
-        "rating": 4.7,
-        "noise_level": 37,
-        "quiet_rating": 86,
-        "distance": 1918,
-        "like_count": 19,
-        "dislike_count": 1
-      },
-      "ai_analysis": {
-        "recommendation_score": 0.92,
-        "reasoning": "이 카페는 소음 수준이 낮고 조용함 점수가 높아 사용자의 선호도에 잘 부합합니다.",
-        "highlights": ["조용한 환경", "높은 평점", "적당한 거리"],
-        "user_match_factors": ["소음 민감도", "카페 선호", "접근성"]
-      },
-      "recommendation_type": "pin_based",
-      "source": "DynamoDB Spots Table"
-    },
-    "general_place_search": {
-      "place": {
-        "name": "북악산 둘레길",
-        "address": "서울특별시 종로구 자하문로 산1-산3",
-        "category": "공원",
-        "lat": 37.5665,
-        "lng": 126.978,
-        "estimated_noise_level": 35,
-        "estimated_quiet_rating": 90,
-        "estimated_rating": 4.5,
-        "description": "북악산 둘레길은 조용하고 평화로운 자연 산책로입니다.",
-        "distance": 0,
-        "access_info": "지하철 1호선 북악산역에서 도보 10분 거리"
-      },
-      "ai_analysis": {
-        "recommendation_score": 0.95,
-        "reasoning": "북악산 둘레길은 소음 수준이 낮고 혼잡도도 적절하여 사용자의 선호도에 잘 부합합니다.",
-        "highlights": ["아름다운 자연 경관", "조용하고 평화로운 분위기", "다양한 코스 선택 가능"],
-        "user_match_factors": ["소음 민감도 medium", "혼잡도 선호 medium", "최소 평점 3 이상"]
-      },
-      "recommendation_type": "general_place_search",
-      "source": "AI-powered Place Search"
-    }
-  },
-  "processing_time_ms": 4474
+  "spot_id": "e32aed8d-4b15-4bcc-a44f-383d49c37d13",
+  "user_id": "test-user-123",
+  "has_interaction": true,
+  "interaction_type": "like",
+  "created_at": "2025-09-05T11:25:00.000Z"
 }
 ```
 
-**특징**
-- **듀얼 추천**: 기존 스팟 데이터 + AI 일반 장소 검색
-- **실시간 AI 분석**: Amazon Bedrock Claude 3 Haiku 모델 사용
-- **맞춤형 추천**: 위치, 선호도, 카테고리 기반 분석
-- **상세한 분석**: 추천 점수, 이유, 하이라이트, 매칭 요소 제공
+**상호작용이 없는 경우 (200 OK)**
+```json
+{
+  "spot_id": "e32aed8d-4b15-4bcc-a44f-383d49c37d13",
+  "user_id": "test-user-123",
+  "has_interaction": false,
+  "interaction_type": null,
+  "created_at": null
+}
+```
+
+**에러 응답**
+
+**필수 파라미터 누락 (400 Bad Request)**
+```json
+{
+  "error": "user_id query parameter is required"
+}
+```
+
+**존재하지 않는 스팟 (400 Bad Request)**
+```json
+{
+  "error": "spotId is required"
+}
+```
 
 ## 이미지 관리 시스템
 
