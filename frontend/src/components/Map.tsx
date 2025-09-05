@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
 import PinRegistrationModal from './PinRegistrationModal';
+import Alert from './Alert';
+import Loading from './Loading';
+import PlacePopulation from './Map/PlacePopulation';
+import { useAlert } from '../hooks/useAlert';
+import { useLoading } from '../hooks/useLoading';
 
 interface MapProps {
   places: Spot[];
@@ -28,6 +33,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const noiseCirclesRef = useRef<any[]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [populationData, setPopulationData] = useState<any[]>([]);
+  const [showCongestion, setShowCongestion] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     visible: false,
     x: 0,
@@ -37,10 +43,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   });
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalData, setPinModalData] = useState({ lat: 0, lng: 0 });
+  const { alert, showErrorAlert, closeAlert } = useAlert();
+  const { loading, withLoading } = useLoading();
 
   useEffect(() => {
     initializeMap();
-    loadPopulationData(); // 인구밀도 데이터 로드
+    loadPopulationData(); // 초기 로드만
   }, []);
 
   useEffect(() => {
@@ -51,10 +59,18 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   useEffect(() => {
     if (mapInstance.current && populationData.length > 0) {
-      updateCrowdPolygons();
-      updateNoiseCircles();
+      if (showCongestion) {
+        updateCrowdPolygons();
+        updateNoiseCircles();
+      } else {
+        // 혼잡도 오버레이 제거
+        crowdPolygonsRef.current.forEach(polygon => polygon.setMap(null));
+        crowdPolygonsRef.current = [];
+        noiseCirclesRef.current.forEach(circle => circle.setMap(null));
+        noiseCirclesRef.current = [];
+      }
     }
-  }, [populationData]);
+  }, [populationData, showCongestion]);
 
   useEffect(() => {
     if (selectedSpot && mapInstance.current) {
@@ -83,30 +99,21 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       
       mapInstance.current = new (window as any).kakao.maps.Map(mapRef.current, options);
       
-      // Kakao Maps API 우클릭 이벤트 (가장 정확함)
+      // 전역에서 접근 가능하도록 지도 인스턴스 노출
+      (window as any).mapInstance = mapInstance.current;
+      
+      // Kakao Maps API 우클릭 이벤트
       (window as any).kakao.maps.event.addListener(mapInstance.current, 'rightclick', (mouseEvent: any) => {
-        console.log('=== 우클릭 이벤트 상세 정보 ===');
-        console.log('전체 mouseEvent:', mouseEvent);
-        
         const latlng = mouseEvent.latLng;
         const lat = latlng.getLat();
         const lng = latlng.getLng();
-        
-        console.log('추출된 좌표:');
-        console.log('- 위도 (lat):', lat);
-        console.log('- 경도 (lng):', lng);
-        console.log('- 좌표 정밀도:', lat.toFixed(8), lng.toFixed(8));
-        
-        // 좌표 검증을 위한 역변환 테스트
-        const testLatLng = new (window as any).kakao.maps.LatLng(lat, lng);
-        console.log('역변환 테스트:', testLatLng.getLat(), testLatLng.getLng());
         
         // 화면 좌표 계산 (메뉴 위치용)
         const rect = mapRef.current!.getBoundingClientRect();
         let screenX = rect.left + rect.width / 2;
         let screenY = rect.top + rect.height / 2;
         
-        // 더 정확한 화면 좌표 계산 시도
+        // 더 정확한 화면 좌표 계산
         try {
           const projection = mapInstance.current.getProjection();
           const mapCenter = mapInstance.current.getCenter();
@@ -118,14 +125,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           
           screenX = rect.left + rect.width / 2 + offsetX;
           screenY = rect.top + rect.height / 2 + offsetY;
-          
-          console.log('화면 좌표 계산:');
-          console.log('- 지도 중심 픽셀:', mapCenterPixel.x, mapCenterPixel.y);
-          console.log('- 클릭 픽셀:', clickPixel.x, clickPixel.y);
-          console.log('- 오프셋:', offsetX, offsetY);
-          console.log('- 최종 화면 좌표:', screenX, screenY);
         } catch (error) {
-          console.log('화면 좌표 계산 실패, 기본값 사용:', error);
+          console.error('화면 좌표 계산 실패:', error);
         }
         
         setContextMenu({
@@ -135,8 +136,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           lat,
           lng
         });
-        
-        console.log('=== 컨텍스트 메뉴 설정 완료 ===');
       });
       
       // 브라우저 기본 우클릭 메뉴 차단
@@ -144,11 +143,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         e.preventDefault();
       });
       
-      // 지도 클릭 이벤트로 좌표 정확도 테스트 및 InfoWindow 닫기
-      (window as any).kakao.maps.event.addListener(mapInstance.current, 'click', (mouseEvent: any) => {
-        const latlng = mouseEvent.latLng;
-        console.log('일반 클릭 좌표 (참고용):', latlng.getLat(), latlng.getLng());
-        
+      // 지도 클릭 이벤트로 InfoWindow 닫기
+      (window as any).kakao.maps.event.addListener(mapInstance.current, 'click', () => {
         // InfoWindow 닫기
         if (infoWindowRef.current) {
           infoWindowRef.current.close();
@@ -160,67 +156,24 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   const loadPopulationData = async () => {
     try {
-      console.log('인구밀도 데이터 로드 시작');
-      const response = await api.population.getPopulation();
+      const response = await withLoading(
+        () => api.population.getRealtimePopulation(),
+        { message: '실시간 인구밀도 데이터 로딩 중...', showLoading: true }
+      );
       
-      console.log('API 응답 전체:', response);
-      console.log('응답 타입:', typeof response);
-      console.log('응답 길이:', response?.length);
-      
-      if (response && response.length > 0) {
-        console.log('첫 번째 데이터 샘플:', response[0]);
-        console.log('데이터 필드들:', Object.keys(response[0]));
-        setPopulationData(response);
-      } else {
-        console.log('API 데이터가 없어 더미 데이터 사용');
-        // 실제 PlacePopulation 모델 구조에 맞는 더미 데이터
-        const dummyData = [
-          { 
-            place_id: 'test1', 
-            lat: 37.5665, 
-            lng: 126.9780, 
-            population: 850, 
-            crowdLevel: 75, 
-            noiseLevel: 55,
-            name: '서울시청 앞'
-          },
-          { 
-            place_id: 'test2', 
-            lat: 37.5675, 
-            lng: 126.9790, 
-            population: 420, 
-            crowdLevel: 45, 
-            noiseLevel: 35,
-            name: '덕수궁 근처'
-          },
-          { 
-            place_id: 'test3', 
-            lat: 37.5655, 
-            lng: 126.9770, 
-            population: 1200, 
-            crowdLevel: 90, 
-            noiseLevel: 65,
-            name: '명동 입구'
-          }
-        ];
-        console.log('더미 데이터 사용:', dummyData);
-        setPopulationData(dummyData);
+      let populationArray = [];
+      if (response && (response as any).data && Array.isArray((response as any).data)) {
+        populationArray = (response as any).data;
+      } else if (response && Array.isArray(response)) {
+        populationArray = response;
       }
+      
+      setPopulationData(populationArray);
+      
     } catch (error) {
-      console.error('인구밀도 데이터 로드 실패:', error);
-      // 에러 시에도 더미 데이터 사용
-      const dummyData = [
-        { 
-          place_id: 'error1', 
-          lat: 37.5665, 
-          lng: 126.9780, 
-          population: 850, 
-          crowdLevel: 75, 
-          noiseLevel: 55,
-          name: '서울시청 (에러시)'
-        }
-      ];
-      setPopulationData(dummyData);
+      console.error('실시간 인구밀도 데이터 로드 실패:', error);
+      showErrorAlert('실시간 인구밀도 API 연결에 실패했습니다.');
+      setPopulationData([]);
     }
   };
 
@@ -406,18 +359,48 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const getCrowdColor = (crowdLevel: number) => {
-    if (crowdLevel >= 80) return 'rgba(255, 0, 0, 0.7)';      // 빨간색 (매우 혼잡)
-    if (crowdLevel >= 60) return 'rgba(255, 165, 0, 0.7)';    // 주황색 (혼잡)
-    if (crowdLevel >= 40) return 'rgba(255, 255, 0, 0.7)';    // 노란색 (보통)
-    if (crowdLevel >= 20) return 'rgba(0, 255, 0, 0.7)';      // 녹색 (여유)
-    return 'rgba(0, 0, 255, 0.7)';                            // 파란색 (한적)
+    // 자연스러운 색연필 색감
+    if (crowdLevel >= 80) return '#FF6B6B';      // 연한 빨간색
+    if (crowdLevel >= 60) return '#FFB347';      // 연한 주황색
+    if (crowdLevel >= 40) return '#FFE66D';      // 연한 노란색
+    if (crowdLevel >= 20) return '#95E1D3';      // 연한 민트색
+    return '#A8E6CF';                            // 연한 녹색
   };
 
   const getNoiseColor = (noiseLevel: number) => {
-    if (noiseLevel >= 70) return 'rgba(255, 0, 0, 0.8)';      // 빨간색 (매우 시끄러움)
-    if (noiseLevel >= 50) return 'rgba(255, 165, 0, 0.8)';    // 주황색 (시끄러움)
-    if (noiseLevel >= 30) return 'rgba(255, 255, 0, 0.8)';    // 노란색 (보통)
-    return 'rgba(0, 255, 0, 0.8)';                            // 녹색 (조용함)
+    // 소음레벨용 자연스러운 색감
+    if (noiseLevel >= 70) return '#FF8A95';      // 연한 분홍색
+    if (noiseLevel >= 50) return '#FECA57';      // 연한 황금색
+    if (noiseLevel >= 30) return '#48CAE4';      // 연한 하늘색
+    return '#B8E6B8';                            // 연한 연두색
+  };
+
+  const createNaturalCircles = (latitude: number, longitude: number, color: string, intensity: number): any[] => {
+    const circles: any[] = [];
+    const center = new (window as any).kakao.maps.LatLng(latitude, longitude);
+    
+    // 다중 원형으로 자연스러운 그라데이션 효과 생성
+    const layers = [
+      { radius: 100, opacity: Math.min(0.6, intensity / 100 * 0.6) },
+      { radius: 200, opacity: Math.min(0.4, intensity / 100 * 0.4) },
+      { radius: 300, opacity: Math.min(0.2, intensity / 100 * 0.2) },
+      { radius: 400, opacity: Math.min(0.1, intensity / 100 * 0.1) }
+    ];
+    
+    layers.forEach(layer => {
+      const circle = new (window as any).kakao.maps.Circle({
+        center: center,
+        radius: layer.radius,
+        strokeWeight: 0,
+        fillColor: color,
+        fillOpacity: layer.opacity
+      });
+      
+      circle.setMap(mapInstance.current);
+      circles.push(circle);
+    });
+    
+    return circles;
   };
 
   const updateCrowdPolygons = () => {
@@ -428,42 +411,38 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     if (!mapInstance.current || !populationData.length) return;
 
     populationData.forEach((data: any) => {
-      // PlacePopulation 모델의 올바른 필드명 사용
-      const latitude = data.lat || data.latitude;
-      const longitude = data.lng || data.longitude;
+      const latitude = data.lat;
+      const longitude = data.lng;
       
       if (!latitude || !longitude) {
         console.warn('위도/경도 정보가 없습니다:', data);
         return;
       }
 
-      // 혼잡도 영역을 큰 사각형으로 표시 - 중심이 latitude, longitude가 되도록
-      const offset = 0.005; // 0.005도 = 약 500m (중심에서 각 방향으로)
-      const bounds = [
-        new (window as any).kakao.maps.LatLng(latitude + offset, longitude - offset), // 좌상
-        new (window as any).kakao.maps.LatLng(latitude + offset, longitude + offset), // 우상
-        new (window as any).kakao.maps.LatLng(latitude - offset, longitude + offset), // 우하
-        new (window as any).kakao.maps.LatLng(latitude - offset, longitude - offset)  // 좌하
-      ];
-
-      const polygon = new (window as any).kakao.maps.Polygon({
-        path: bounds,
-        strokeWeight: 3,
-        strokeColor: getCrowdColor(data.crowdLevel || data.crowd_level || 50).replace('0.7', '1'),
-        strokeOpacity: 1,
-        fillColor: getCrowdColor(data.crowdLevel || data.crowd_level || 50),
-        fillOpacity: 0.7
+      const crowdLevel = data.crowdLevel || data.crowd_level || 50;
+      const color = getCrowdColor(crowdLevel);
+      
+      // 호버용 투명 원형 영역
+      const hoverCircle = new (window as any).kakao.maps.Circle({
+        center: new (window as any).kakao.maps.LatLng(latitude, longitude),
+        radius: 400,
+        strokeWeight: 0,
+        fillColor: 'transparent',
+        fillOpacity: 0
       });
 
-      polygon.setMap(mapInstance.current);
+      hoverCircle.setMap(mapInstance.current);
 
-      // 호버 이벤트 추가
-      (window as any).kakao.maps.event.addListener(polygon, 'mouseover', () => {
+      // 호버 이벤트
+      (window as any).kakao.maps.event.addListener(hoverCircle, 'mouseover', () => {
         const content = `
-          <div style="padding: 12px; font-size: 14px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 2px solid #333;">
-            <strong style="color: #333;">🚶 유동인구: ${data.population || '정보없음'}명</strong><br>
-            <strong style="color: #666;">📊 혼잡도: ${data.crowdLevel || data.crowd_level || 0}%</strong><br>
-            <small style="color: #999;">📍 ${data.name || '위치정보'}</small>
+          <div style="padding: 12px; font-size: 14px; background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); border: 1px solid #ddd; max-width: 220px;">
+            <strong style="color: #333;">📍 ${data.name || '위치정보'}</strong><br>
+            <strong style="color: #333;">🚶 유동인구: ${data.population?.toLocaleString() || '정보없음'}명</strong><br>
+            <strong style="color: #666;">📊 혼잡도: ${crowdLevel}%</strong><br>
+            <div style="margin-top: 8px; padding: 4px 8px; background: ${color}20; border-radius: 4px; font-size: 12px;">
+              ${crowdLevel >= 80 ? '🔴 매우 혼잡' : crowdLevel >= 60 ? '🟠 혼잡' : crowdLevel >= 40 ? '🟡 보통' : crowdLevel >= 20 ? '🟢 여유' : '🔵 한적'}
+            </div>
           </div>
         `;
         
@@ -472,19 +451,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           removable: false
         });
         
-        // 정확히 중심점에 InfoWindow 표시
         tempInfoWindow.open(mapInstance.current, new (window as any).kakao.maps.LatLng(latitude, longitude));
         
-        // 마우스 아웃 시 제거
-        (window as any).kakao.maps.event.addListener(polygon, 'mouseout', () => {
+        (window as any).kakao.maps.event.addListener(hoverCircle, 'mouseout', () => {
           tempInfoWindow.close();
         });
       });
 
-      crowdPolygonsRef.current.push(polygon);
+      crowdPolygonsRef.current.push(hoverCircle);
     });
-
-    console.log('혼잡도 폴리곤 생성 완료:', crowdPolygonsRef.current.length);
   };
 
   const updateNoiseCircles = () => {
@@ -495,30 +470,28 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     if (!mapInstance.current || !populationData.length) return;
 
     populationData.forEach((data: any) => {
-      // PlacePopulation 모델의 올바른 필드명 사용
-      const latitude = data.lat || data.latitude;
-      const longitude = data.lng || data.longitude;
+      const latitude = data.lat;
+      const longitude = data.lng;
       
       if (!latitude || !longitude) {
         console.warn('위도/경도 정보가 없습니다:', data);
         return;
       }
 
-      const circle = new (window as any).kakao.maps.Circle({
-        center: new (window as any).kakao.maps.LatLng(latitude, longitude), // 정확히 중심에 위치
-        radius: 300, // 300m 반경
-        strokeWeight: 4,
-        strokeColor: getNoiseColor(data.noiseLevel || data.noise_level || 40).replace('0.8', '1'),
-        strokeOpacity: 1,
-        fillColor: getNoiseColor(data.noiseLevel || data.noise_level || 40),
-        fillOpacity: 0.5
+      const noiseLevel = data.noiseLevel || data.noise_level || 40;
+      const color = getNoiseColor(noiseLevel);
+      
+      // 소음레벨을 작은 다중 원형으로 표시
+      const circles = createNaturalCircles(latitude, longitude, color, noiseLevel);
+      
+      // 소음레벨은 더 작은 크기로 조정
+      circles.forEach((circle, index) => {
+        const smallRadius = [60, 120, 180, 240][index]; // 더 작은 반경
+        circle.setRadius(smallRadius);
       });
-
-      circle.setMap(mapInstance.current);
-      noiseCirclesRef.current.push(circle);
+      
+      circles.forEach(circle => noiseCirclesRef.current.push(circle));
     });
-
-    console.log('소음레벨 원형 생성 완료:', noiseCirclesRef.current.length);
   };
 
   const updateMarkers = () => {
@@ -537,8 +510,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       });
 
       (window as any).kakao.maps.event.addListener(marker, 'click', () => {
-        console.log('핀 클릭:', place.name);
-        
         // InfoWindow 표시
         showInfoWindow(marker, place);
         
@@ -581,7 +552,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   const moveToCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('위치 서비스를 지원하지 않는 브라우저입니다.');
+      window.alert('위치 서비스를 지원하지 않는 브라우저입니다.');
       return;
     }
 
@@ -603,7 +574,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       },
       (error) => {
         console.error('위치 정보를 가져올 수 없습니다:', error);
-        alert('위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.');
+        window.alert('위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.');
         setIsLocating(false);
       },
       {
@@ -623,13 +594,13 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         setShowPinModal(true);
         break;
       case 'start':
-        alert(`출발지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        window.alert(`출발지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         break;
       case 'waypoint':
-        alert(`경유지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        window.alert(`경유지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         break;
       case 'destination':
-        alert(`도착지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        window.alert(`도착지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         break;
     }
     
@@ -668,7 +639,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       // API 호출
       await api.spots.createSpot(spotData);
       
-      alert(`"${data.name}" 장소가 성공적으로 등록되었습니다!`);
+      window.alert(`"${data.name}" 장소가 성공적으로 등록되었습니다!`);
       
       // 스팟 목록 새로고침
       if (onSpotsUpdate) {
@@ -677,13 +648,13 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       
     } catch (error) {
       console.error('스팟 등록 실패:', error);
-      alert('스팟 등록에 실패했습니다. 다시 시도해주세요.');
+      window.alert('스팟 등록에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+      <div id="map" ref={mapRef} style={{ width: '100%', height: '100%' }} />
       
       {/* 컨텍스트 메뉴 */}
       {contextMenu.visible && (
@@ -786,6 +757,32 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         {isLocating ? '⏳' : '📍'}
       </button>
 
+      {/* Toggle Button */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000
+      }}>
+        <button
+          onClick={() => setShowCongestion(!showCongestion)}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: showCongestion ? '#FF6B35' : '#fff',
+            color: showCongestion ? '#fff' : '#333',
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            minWidth: '100px'
+          }}
+        >
+          실시간 혼잡도 {showCongestion ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
       <PinRegistrationModal
         isOpen={showPinModal}
         onClose={() => setShowPinModal(false)}
@@ -793,6 +790,35 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         lng={pinModalData.lng}
         onSubmit={handlePinRegistration}
       />
+      
+      <Alert
+        type={alert.type}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        autoClose={alert.autoClose}
+      />
+      
+      <Loading
+        isOpen={loading.isOpen}
+        message={loading.message}
+      />
+      
+      {/* Congestion Overlay */}
+      {showCongestion && populationData.length > 0 && (
+        <PlacePopulation 
+          map={mapInstance.current} 
+          congestionData={populationData.map(data => ({
+            lat: data.lat,
+            lng: data.lng,
+            population: data.population,
+            noiseLevel: data.noiseLevel,
+            crowdLevel: data.crowdLevel,
+            address: `${data.category || ''} - ${data.name}`,
+            name: data.name
+          }))}
+        />
+      )}
     </div>
   );
 };

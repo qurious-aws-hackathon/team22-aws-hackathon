@@ -7,6 +7,28 @@ interface FloatingPlaceListProps {
 }
 
 const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceClick }) => {
+  if (places.length === 0) {
+    return (
+      <div className="floating-place-list">
+        <div className="floating-header">
+          <h3>🌟 조용한 장소 추천</h3>
+          <span className="place-count">0곳</span>
+        </div>
+        <div className="place-items">
+          <div style={{ 
+            padding: '20px', 
+            textAlign: 'center', 
+            color: '#666',
+            fontSize: '14px'
+          }}>
+            등록된 장소가 없습니다.<br/>
+            지도에서 우클릭하여 새로운 장소를 등록해보세요!
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="floating-place-list">
       <div className="floating-header">
