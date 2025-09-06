@@ -131,6 +131,11 @@ terraform destroy
 - **관광업**: 현지인만 아는 조용한 명소 소개
 
 ---
-
+### 로컬 및 배포 서비스 테스트 계정정보
+- url: https://d365b0i7igooja.cloudfront.net/  
+- 계정 정보
+  - ID: amazon
+  - PW: 123123
+---
 **개발팀**: Team22  
 **개발 기간**: 2025.09.05 ~ 2025.09.06
