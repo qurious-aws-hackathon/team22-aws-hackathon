@@ -1,11 +1,11 @@
 import { spotsClient } from './config';
-import { 
-  Spot, 
-  CreateSpotRequest, 
-  UpdateSpotRequest, 
-  GetSpotsRequest, 
+import {
+  Spot,
+  CreateSpotRequest,
+  UpdateSpotRequest,
+  GetSpotsRequest,
   GetSpotDetailResponse,
-  ReactionResponse 
+  ReactionResponse
 } from './models';
 
 // 사용자 ID 생성 (로컬 스토리지에서 관리)
@@ -97,7 +97,7 @@ export const spotsApi = {
     }
   },
 
-  async getReactionStatus(spotId: string): Promise<{ userReaction: string | null }> {
+  async getReactionStatus(spotId: string): Promise<{ userReaction: 'like' | 'dislike' | null }> {
     try {
       const response = await spotsClient.get(`/spots/${spotId}/like-status`, {
         headers: {
