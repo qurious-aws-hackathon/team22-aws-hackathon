@@ -85,9 +85,16 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
   const handleLike = useCallback(async () => {
     if (!currentSpot) return;
     try {
-      await api.spots.likeSpot(currentSpot.id);
-      loadSpotDetails(currentSpot.id);
-      loadUserReaction(currentSpot.id);
+      const response = await api.spots.likeSpot(currentSpot.id);
+      
+      // 로컬 상태만 업데이트 (전체 재조회 없이)
+      setCurrentSpot(prev => prev ? {
+        ...prev,
+        like_count: response.likes,
+        dislike_count: response.dislikes
+      } : null);
+      
+      setUserReaction(response.userReaction || null);
     } catch (error) {
       onAlert?.('error', '좋아요 처리에 실패했습니다.');
     }
@@ -96,9 +103,16 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
   const handleDislike = useCallback(async () => {
     if (!currentSpot) return;
     try {
-      await api.spots.dislikeSpot(currentSpot.id);
-      loadSpotDetails(currentSpot.id);
-      loadUserReaction(currentSpot.id);
+      const response = await api.spots.dislikeSpot(currentSpot.id);
+      
+      // 로컬 상태만 업데이트 (전체 재조회 없이)
+      setCurrentSpot(prev => prev ? {
+        ...prev,
+        like_count: response.likes,
+        dislike_count: response.dislikes
+      } : null);
+      
+      setUserReaction(response.userReaction || null);
     } catch (error) {
       onAlert?.('error', '싫어요 처리에 실패했습니다.');
     }
