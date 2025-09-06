@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { chatbotApi, type ChatSession } from '../api/chatbot';
+import { api, type ChatSession } from '../api';
 
 interface Message {
   id: string;
@@ -45,7 +45,7 @@ const ChatBot: React.FC = () => {
   const initSession = async () => {
     if (!session) {
       try {
-        const newSession = await chatbotApi.createSession();
+        const newSession = await api.chatbot.createSession();
         setSession(newSession);
         
         // Add welcome message
@@ -98,7 +98,7 @@ const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await chatbotApi.sendMessage(session.sessionId, messageText);
+      const response = await api.chatbot.sendMessage(session.sessionId, messageText);
       
       const botMessage: Message = {
         id: response.messageId,

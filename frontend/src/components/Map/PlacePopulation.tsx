@@ -22,10 +22,8 @@ const PlacePopulation: React.FC<PlacePopulationProps> = ({ map, congestionData }
   const infoWindowRef = useRef<any>(null);
 
   useEffect(() => {
-    console.log('PlacePopulation 렌더링:', { map: !!map, dataLength: congestionData.length });
     
     if (!map || !(window as any).kakao?.maps?.Circle) {
-      console.log('지도 또는 Kakao API 없음');
       return;
     }
 
@@ -52,7 +50,6 @@ const PlacePopulation: React.FC<PlacePopulationProps> = ({ map, congestionData }
     }
 
     if (!congestionData.length) {
-      console.log('혼잡도 데이터 없음');
       return;
     }
 
