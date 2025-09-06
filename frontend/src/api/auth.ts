@@ -1,10 +1,10 @@
-import { spotsClient } from './config';
+import { authClient } from './config';
 import { LoginRequest, RegisterRequest, AuthResponse, User } from './models/user';
 
 export const authApi = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      const response = await spotsClient.post('/auth/login', {
+      const response = await authClient.post('/auth/login', {
         nickname: credentials.nickname,  // Lambda가 nickname을 기대할 수 있음
         password: credentials.password
       });
@@ -28,7 +28,7 @@ export const authApi = {
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
-      const response = await spotsClient.post('/auth/register', {
+      const response = await authClient.post('/auth/register', {
         nickname: userData.nickname,  // Lambda가 nickname을 기대할 수 있음
         password: userData.password
       });
