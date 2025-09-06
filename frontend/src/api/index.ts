@@ -6,7 +6,6 @@ export * from './config';
 export * from './population';
 export * from './spots';
 export * from './comments';
-export * from './images';
 export * from './chatbot';
 export * from './auth';
 
@@ -14,7 +13,6 @@ export * from './auth';
 import { populationApi } from './population';
 import { spotsApi } from './spots';
 import { commentsApi } from './comments';
-import { imagesApi } from './images';
 import { chatbotApi } from './chatbot';
 import { authApi } from './auth';
 
@@ -22,7 +20,6 @@ export const api = {
   population: populationApi,
   spots: spotsApi,
   comments: commentsApi,
-  images: imagesApi,
   chatbot: chatbotApi,
   auth: authApi
 };

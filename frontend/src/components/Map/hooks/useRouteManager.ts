@@ -250,10 +250,6 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
       polyline.setMap(mapInstance);
       routePolylineRef.current = polyline;
 
-      const distanceKm = (routeData.distance / 1000).toFixed(1);
-      const durationMin = Math.ceil(routeData.duration / 60);
-      const quietnessPercent = Math.round(quietnessScore * 100);
-
       setRouteState(prev => ({
         ...prev,
         recommendedRoute: {
@@ -268,7 +264,7 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
       }));
 
       // callbacks.onAlert?.('success', 
-      //   `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%`
+      //   `🤫 조용한 경로 찾기 완료!\n거리: ${(routeData.distance / 1000).toFixed(1)}km, 시간: ${Math.ceil(routeData.duration / 60)}분\n조용함 지수: ${Math.round(quietnessScore * 100)}%`
       // );
 
       return routeData;
