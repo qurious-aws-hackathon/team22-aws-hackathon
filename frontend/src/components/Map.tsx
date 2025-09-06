@@ -264,12 +264,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     // 지도 이동 (팝업이 중앙에 오도록 조정)
     const moveLatLng = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
 
-    // 팝업이 화면 중앙에 오도록 마커보다 위쪽으로 지도 중심 이동
+    // 팝업이 화면 중앙에 오도록 마커보다 아래쪽으로 지도 중심 이동
     const projection = mapInstance.current.getProjection();
     const point = projection.pointFromCoords(moveLatLng);
 
-    // 팝업 높이만큼 위쪽으로 이동 (약 150px)
-    const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y - 150);
+    // 팝업 높이만큼 아래쪽으로 이동 (약 200px)
+    const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 200);
     const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
 
     mapInstance.current.setCenter(adjustedLatLng);
@@ -301,6 +301,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               삭제
             </button>
           </div>
+          
+          ${place.image_url ? `
+            <div style="margin-bottom: 16px;">
+              <img src="${place.image_url}" alt="${place.name}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" />
+            </div>
+          ` : ''}
           
           <div style="display: flex; gap: 12px; margin-bottom: 16px;">
             <button id="like-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
@@ -368,7 +374,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const overlay = new (window as any).kakao.maps.CustomOverlay({
         content: overlayContent,
         position: new (window as any).kakao.maps.LatLng(place.lat, place.lng),
-        yAnchor: 1.3, // 마커 아이콘 위에 표시
+        yAnchor: 0.1, // 마커 아래쪽에 표시
         xAnchor: 0.5
       });
 
@@ -1185,7 +1191,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     category: string;
     noiseLevel: number;
     rating: number;
-    image?: File;
+    image_url?: string;
     isNoiseRecorded: boolean;
   }) => {
     try {
@@ -1204,7 +1210,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           rating: data.rating,
           quiet_rating: Math.round(quietRating),
           is_noise_recorded: data.isNoiseRecorded,
-          user_id: currentUser ? currentUser.id : 'anonymous'
+          user_id: currentUser ? currentUser.id : 'anonymous',
+          image_url: data.image_url || undefined
         };
 
 
@@ -1216,8 +1223,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       // 성공 시 모달 닫기
       setShowPinModal(false);
-
-      showAlert('success', `"${data.name}" 장소가 성공적으로 등록되었습니다!`);
 
       // 스팟 목록 새로고침
       if (onSpotsUpdate) {

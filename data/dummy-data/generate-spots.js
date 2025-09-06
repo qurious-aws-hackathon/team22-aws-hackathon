@@ -134,6 +134,7 @@ async function generateSpots(userIds) {
             like_count: Math.floor(Math.random() * 20),
             dislike_count: Math.floor(Math.random() * 3),
             is_noise_recorded: Math.random() > 0.7, // 30% chance
+            image_url: null, // Nullable image URL field
             created_at: createdAt,
             updated_at: createdAt,
             geohash: geohash(coords.lat, coords.lng)
