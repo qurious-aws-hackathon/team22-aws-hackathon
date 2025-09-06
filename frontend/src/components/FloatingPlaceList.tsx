@@ -84,26 +84,26 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           className={`filter-tab ${filter === 'latest' ? 'active' : ''}`}
           onClick={() => setFilter('latest')}
         >
-          최신
+          최신순
         </button>
         <button 
           className={`filter-tab ${filter === 'distance' ? 'active' : ''}`}
           onClick={() => setFilter('distance')}
           disabled={!userLocation}
         >
-          거리
+          거리순
         </button>
         <button 
           className={`filter-tab ${filter === 'likes' ? 'active' : ''}`}
           onClick={() => setFilter('likes')}
         >
-          좋아요
+          좋아요순
         </button>
         <button 
           className={`filter-tab ${filter === 'quiet' ? 'active' : ''}`}
           onClick={() => setFilter('quiet')}
         >
-          조용함
+          조용함순
         </button>
       </div>
       
