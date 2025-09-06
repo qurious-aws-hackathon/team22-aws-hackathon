@@ -8,6 +8,16 @@ import {
   ReactionResponse 
 } from './models';
 
+// 사용자 ID 생성 (로컬 스토리지에서 관리)
+const getUserId = (): string => {
+  let userId = localStorage.getItem('user_id');
+  if (!userId) {
+    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('user_id', userId);
+  }
+  return userId;
+};
+
 export const spotsApi = {
   async getSpots(params?: GetSpotsRequest): Promise<Spot[]> {
     const response = await spotsClient.get('/spots', { params });
@@ -35,13 +45,18 @@ export const spotsApi = {
 
   async likeSpot(spotId: string): Promise<ReactionResponse> {
     try {
-      const response = await spotsClient.post(`/spots/${spotId}/like`, {});
+      const response = await spotsClient.post(`/spots/${spotId}/like`, {}, {
+        headers: {
+          'x-user-id': getUserId()
+        }
+      });
       const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       return {
         success: true,
         message: 'Success',
-        likes: data.likes || data.like_count || 0,
-        dislikes: data.dislikes || data.dislike_count || 0
+        likes: data.likes || 0,
+        dislikes: data.dislikes || 0,
+        userReaction: data.userReaction || null
       };
     } catch (error) {
       console.error('Like API Error:', error);
@@ -49,20 +64,26 @@ export const spotsApi = {
         success: false,
         message: 'Failed',
         likes: 0,
-        dislikes: 0
+        dislikes: 0,
+        userReaction: null
       };
     }
   },
 
   async dislikeSpot(spotId: string): Promise<ReactionResponse> {
     try {
-      const response = await spotsClient.post(`/spots/${spotId}/dislike`, {});
+      const response = await spotsClient.post(`/spots/${spotId}/dislike`, {}, {
+        headers: {
+          'x-user-id': getUserId()
+        }
+      });
       const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       return {
         success: true,
         message: 'Success',
-        likes: data.likes || data.like_count || 0,
-        dislikes: data.dislikes || data.dislike_count || 0
+        likes: data.likes || 0,
+        dislikes: data.dislikes || 0,
+        userReaction: data.userReaction || null
       };
     } catch (error) {
       console.error('Dislike API Error:', error);
@@ -70,7 +91,27 @@ export const spotsApi = {
         success: false,
         message: 'Failed',
         likes: 0,
-        dislikes: 0
+        dislikes: 0,
+        userReaction: null
+      };
+    }
+  },
+
+  async getReactionStatus(spotId: string): Promise<{ userReaction: string | null }> {
+    try {
+      const response = await spotsClient.get(`/spots/${spotId}/like-status`, {
+        headers: {
+          'x-user-id': getUserId()
+        }
+      });
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      return {
+        userReaction: data.userReaction || null
+      };
+    } catch (error) {
+      console.error('Get Reaction Status API Error:', error);
+      return {
+        userReaction: null
       };
     }
   },

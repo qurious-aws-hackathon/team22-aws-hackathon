@@ -27,7 +27,7 @@ interface ContextMenu {
 
 const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUpdate, onSpotDelete }) => {
   console.log('🗺️ Map 컴포넌트 렌더링 - places 수:', places?.length || 0);
-  
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -72,7 +72,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const { withLoading } = useLoading();
-  
+
   // 경로 상태 관리 (UI용)
   const [routeState, setRouteState] = useState<RouteState>({
     startPoint: null,
@@ -86,7 +86,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   useEffect(() => {
     // 거리 계산 함수 테스트
     testDistanceCalculation();
-    
+
     initializeMap();
     // 지도 초기화 후 혼잡도 데이터 로드
     setTimeout(() => {
@@ -249,7 +249,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     );
   };
 
-  const showInfoWindow = (marker: any, place: Spot) => {
+  const showInfoWindow = async (marker: any, place: Spot) => {
     // 기존 오버레이 제거 (중복 방지)
     if (infoWindowRef.current) {
       infoWindowRef.current.setMap(null);
@@ -261,8 +261,18 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       return;
     }
 
+    // 최신 Spot 정보 조회
+    let currentSpot = place;
+    try {
+      const spotDetail = await api.spots.getSpot(place.id);
+      currentSpot = spotDetail;
+    } catch (error) {
+      console.error('Spot 정보 조회 실패:', error);
+      // 실패해도 기존 데이터로 진행
+    }
+
     // 지도 이동 (팝업이 중앙에 오도록 조정)
-    const moveLatLng = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
+    const moveLatLng = new (window as any).kakao.maps.LatLng(currentSpot.lat, currentSpot.lng);
 
     // 팝업이 화면 중앙에 오도록 마커보다 위쪽으로 지도 중심 이동
     const projection = mapInstance.current.getProjection();
@@ -296,7 +306,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           </div>
           
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #333; word-wrap: break-word; overflow-wrap: break-word; flex: 1; min-width: 0;">${place.name}</h2>
+            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #333; word-wrap: break-word; overflow-wrap: break-word; flex: 1; min-width: 0;">${currentSpot.name}</h2>
             <button id="delete-btn" style="background: #ff4757; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: white; padding: 4px 8px; font-weight: 500; display: none; flex-shrink: 0;" title="장소 삭제">
               삭제
             </button>
@@ -304,20 +314,20 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           
           <div style="display: flex; gap: 12px; margin-bottom: 16px;">
             <button id="like-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
-              👍 ${place.like_count || 0}
+              👍 ${currentSpot.like_count || 0}
             </button>
             <button id="dislike-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
-              👎 ${place.dislike_count || 0}
+              👎 ${currentSpot.dislike_count || 0}
             </button>
             <span style="padding: 8px 12px; background: #667eea; border-radius: 20px; color: white; font-size: 14px;">
-              🔊 ${place.noise_level}dB ${place.is_noise_recorded ? '⭐' : ''}
+              🔊 ${currentSpot.noise_level}dB ${currentSpot.is_noise_recorded ? '⭐' : ''}
             </span>
           </div>
           
           <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #555; margin-bottom: 16px; 
              word-break: break-all; 
              white-space: normal;">
-            ${place.description}
+            ${currentSpot.description}
            </div>
           
           <div>
@@ -378,11 +388,62 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       // 이벤트 리스너 등록
       const closeBtn = overlayContent.querySelector('#close-btn');
-      const likeBtn = overlayContent.querySelector('#like-btn');
-      const dislikeBtn = overlayContent.querySelector('#dislike-btn');
+      const likeBtn = overlayContent.querySelector('#like-btn') as HTMLButtonElement;
+      const dislikeBtn = overlayContent.querySelector('#dislike-btn') as HTMLButtonElement;
       const deleteBtn = overlayContent.querySelector('#delete-btn');
       const commentBtn = overlayContent.querySelector('#comment-btn');
       const commentInput = overlayContent.querySelector('#comment-input');
+
+      // 사용자의 현재 반응 상태 확인 및 버튼 색상 업데이트
+      const updateButtonStyles = async () => {
+        try {
+          const { userReaction } = await api.spots.getReactionStatus(currentSpot.id);
+
+          if (likeBtn) {
+            if (userReaction === 'like') {
+              likeBtn.style.color = '#8B5CF6';
+              likeBtn.style.backgroundColor = '#F3F4F6';
+              likeBtn.style.borderColor = '#8B5CF6';
+              likeBtn.style.fontWeight = 'bold';
+            } else {
+              likeBtn.style.color = '#6B7280';
+              likeBtn.style.backgroundColor = 'white';
+              likeBtn.style.borderColor = '#e0e0e0';
+              likeBtn.style.fontWeight = 'normal';
+            }
+          }
+
+          if (dislikeBtn) {
+            if (userReaction === 'dislike') {
+              dislikeBtn.style.color = '#8B5CF6';
+              dislikeBtn.style.backgroundColor = '#F3F4F6';
+              dislikeBtn.style.borderColor = '#8B5CF6';
+              dislikeBtn.style.fontWeight = 'bold';
+            } else {
+              dislikeBtn.style.color = '#6B7280';
+              dislikeBtn.style.backgroundColor = 'white';
+              dislikeBtn.style.borderColor = '#e0e0e0';
+              dislikeBtn.style.fontWeight = 'normal';
+            }
+          }
+        } catch (error) {
+          console.error('반응 상태 확인 실패:', error);
+        }
+      };
+
+      // Spot 정보 다시 조회하여 최신 좋아요/싫어요 수 업데이트
+      const refreshSpotData = async () => {
+        try {
+          const updatedSpot = await api.spots.getSpot(currentSpot.id);
+          if (likeBtn) likeBtn.innerHTML = `👍 ${updatedSpot.like_count || 0}`;
+          if (dislikeBtn) dislikeBtn.innerHTML = `👎 ${updatedSpot.dislike_count || 0}`;
+        } catch (error) {
+          console.error('Spot 정보 새로고침 실패:', error);
+        }
+      };
+
+      // 초기 버튼 상태 설정
+      updateButtonStyles();
 
       if (closeBtn) {
         closeBtn.onclick = () => {
@@ -394,9 +455,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       if (likeBtn) {
         likeBtn.onclick = async () => {
           try {
-            const response = await api.spots.likeSpot(place.id);
-            likeBtn.innerHTML = `👍 ${response.likes}`;
-            if (dislikeBtn) dislikeBtn.innerHTML = `👎 ${response.dislikes}`;
+            const response = await api.spots.likeSpot(currentSpot.id);
+
+            // Spot 정보 새로고침 후 버튼 상태 업데이트
+            await refreshSpotData();
+            updateButtonStyles();
           } catch (error) {
             console.error('좋아요 실패:', error);
           }
@@ -406,9 +469,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       if (dislikeBtn) {
         dislikeBtn.onclick = async () => {
           try {
-            const response = await api.spots.dislikeSpot(place.id);
-            if (likeBtn) likeBtn.innerHTML = `👍 ${response.likes}`;
-            dislikeBtn.innerHTML = `👎 ${response.dislikes}`;
+            const response = await api.spots.dislikeSpot(currentSpot.id);
+
+            // Spot 정보 새로고침 후 버튼 상태 업데이트
+            await refreshSpotData();
+            updateButtonStyles();
           } catch (error) {
             console.error('싫어요 실패:', error);
           }
@@ -417,7 +482,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       if (deleteBtn) {
         const currentUser = api.auth.getCurrentUser();
-        const canDelete = currentUser && (place.user_id === currentUser.id || place.user_id === 'anonymous');
+        const canDelete = currentUser && (currentSpot.user_id === currentUser.id || currentSpot.user_id === 'anonymous');
 
         if (canDelete) {
           deleteBtn.style.display = 'inline-block';
@@ -425,12 +490,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             if (!confirm('정말로 이 장소를 삭제하시겠습니까?')) return;
 
             try {
-              const result = await api.spots.deleteSpot(place.id);
+              const result = await api.spots.deleteSpot(currentSpot.id);
               if (result.success) {
                 window.alert('장소가 성공적으로 삭제되었습니다.');
                 overlay.setMap(null);
                 infoWindowRef.current = null;
-                onSpotDelete?.(place.id);
+                onSpotDelete?.(currentSpot.id);
                 if (onSpotsUpdate) onSpotsUpdate();
               } else {
                 window.alert(result.message || '장소 삭제에 실패했습니다.');
@@ -450,7 +515,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           if (!comment) return;
 
             const requestData = {
-              spot_id: place.id,
+              spot_id: currentSpot.id,
               content: comment,
               user_id: currentUser.id,
               nickname: currentUser.nickname
@@ -474,7 +539,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       // 댓글 로드
       const loadComments = async () => {
         try {
-          const comments = await api.comments.getComments({ spot_id: place.id, limit: 5 });
+          const comments = await api.comments.getComments({ spot_id: currentSpot.id, limit: 5 });
           const commentsList = overlayContent.querySelector('#comments-list');
 
           if (commentsList) {
@@ -771,7 +836,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         break;
       case 'end':
         if (!startPointRef.current) {
-          alert('먼저 출발지를 설정해주세요.');
+          showAlert('error', '먼저 출발지를 설정해주세요.');
           break;
         }
         const endPoint = { lat, lng };
@@ -807,30 +872,30 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
     const color = type === 'start' ? '#4CAF50' : '#F44336';
     const label = type === 'start' ? 'S' : 'E';
-    
+
     const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
       <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
         <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
         <text x="20" y="28" text-anchor="middle" font-size="18" fill="white" font-weight="bold">${label}</text>
       </svg>
     `);
-    
+
     const imageSize = new (window as any).kakao.maps.Size(40, 40);
     const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
-    
+
     const marker = new (window as any).kakao.maps.Marker({
       position,
       image: markerImage,
       map: mapInstance.current
     });
-    
+
     routeMarkersRef.current.push(marker);
     console.log(`${type} 마커 추가 완료. 총 경로 마커 수:`, routeMarkersRef.current.length);
   };
 
   const clearRoute = () => {
     console.log('경로 초기화 시작');
-    
+
     // 경로 마커들 제거 (안전성 체크)
     if (routeMarkersRef.current && routeMarkersRef.current.length > 0) {
       routeMarkersRef.current.forEach(marker => {
@@ -840,35 +905,35 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       });
       routeMarkersRef.current = [];
     }
-    
+
     // 경로 폴리라인 제거
     if (routePolylineRef.current) {
       routePolylineRef.current.setMap(null);
       routePolylineRef.current = null;
     }
-    
+
     // 상태 초기화
     startPointRef.current = null;
     endPointRef.current = null;
     isRouteModeRef.current = false;
-    
+
     setRouteState({
       startPoint: null,
       endPoint: null,
       isRouteMode: false,
       recommendedRoute: null
     });
-    
+
     // 주변 조용한 장소 목록 초기화
     setNearbyQuietPlaces([]);
-    
+
     // 마커 강조 표시 초기화
     try {
       resetMarkerHighlights();
     } catch (error) {
       console.warn('마커 강조 표시 초기화 실패:', error);
     }
-    
+
     console.log('경로 초기화 완료');
   };
 
@@ -890,7 +955,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
             </svg>
           `);
-          
+
           const imageSize = new (window as any).kakao.maps.Size(30, 30);
           const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
           marker.setImage(defaultImage);
@@ -904,28 +969,28 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const drawQuietRoute = async (start: LatLng, end: LatLng) => {
     try {
       console.log('🤫 조용한 경로 탐색 중...', start, '→', end);
-      
+
       // 조용한 경로 API로 최적화된 경로 가져오기
       const routeData = await quietRouteApi.findQuietRoute(start, end, {
         preferQuiet: true,
         avoidCrowded: true,
         maxDetour: 500
       });
-      
+
       console.log('📍 조용한 경로 데이터:', routeData);
-      
+
       // 경로 좌표들을 카카오맵 LatLng 객체로 변환
-      const linePath = routeData.points.map(point => 
+      const linePath = routeData.points.map(point =>
         new (window as any).kakao.maps.LatLng(point.lat, point.lng)
       );
-      
+
       // 조용함 점수에 따른 색상 결정
       const quietnessScore = routeData.quietness_score || 0.7;
       const routeColor = quietnessScore > 0.8 ? '#4CAF50' : // 매우 조용함 - 녹색
-                        quietnessScore > 0.6 ? '#8BC34A' : // 조용함 - 연녹색  
+                        quietnessScore > 0.6 ? '#8BC34A' : // 조용함 - 연녹색
                         quietnessScore > 0.4 ? '#FFC107' : // 보통 - 노란색
                         '#FF9800'; // 시끄러움 - 주황색
-      
+
       // 폴리라인으로 경로 그리기
       const polyline = new (window as any).kakao.maps.Polyline({
         path: linePath,
@@ -934,17 +999,17 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         strokeOpacity: 0.8,
         strokeStyle: 'solid'
       });
-      
+
       polyline.setMap(mapInstance.current);
       routePolylineRef.current = polyline;
-      
+
       // 경로 정보 표시
       const distanceKm = (routeData.distance / 1000).toFixed(1);
       const durationMin = Math.ceil(routeData.duration / 60);
       const quietnessPercent = Math.round(quietnessScore * 100);
-      
+
       console.log(`✅ 조용한 경로 완료: ${distanceKm}km, 약 ${durationMin}분, 조용함 ${quietnessPercent}%`);
-      
+
       // 경로 상태 업데이트
       setRouteState(prev => ({
         ...prev,
@@ -958,19 +1023,19 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           congestion_levels: []
         }
       }));
-      
+
       // 경로 주변 조용한 장소 찾기
       console.log('📍 경로 데이터 확인:', {
         points: routeData.points?.length || 0,
         places: places?.length || 0,
         searchRadius
       });
-      
+
       const nearbyPlaces = findNearbyQuietPlaces(routeData.points, places, searchRadius);
       setNearbyQuietPlaces(nearbyPlaces);
-      
+
       console.log('🎯 주변 장소 설정 완료:', nearbyPlaces.length);
-      
+
       // 마커 강조 표시 (애니메이션 포함)
       if (nearbyPlaces.length > 0) {
         console.log('🎬 애니메이션 시작');
@@ -978,22 +1043,22 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       } else {
         console.log('❌ 주변 장소가 없어 애니메이션 생략');
       }
-      
+
       // 사용자에게 경로 정보 알림
       const nearbyCount = nearbyPlaces.length;
       const radiusKm = (searchRadius / 1000).toFixed(1);
       showAlert('success', `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%\n🏞️ 반경 ${radiusKm}km 내 조용한 장소: ${nearbyCount}개`);
-      
+
     } catch (error) {
       console.error('❌ 조용한 경로 탐색 실패:', error);
-      
+
       // 실패 시 기본 카카오 경로로 폴백
       try {
         const fallbackRoute = await kakaoDirectionsApi.getWalkingRoute(start, end);
-        const linePath = fallbackRoute.points.map(point => 
+        const linePath = fallbackRoute.points.map(point =>
           new (window as any).kakao.maps.LatLng(point.lat, point.lng)
         );
-        
+
         const polyline = new (window as any).kakao.maps.Polyline({
           path: linePath,
           strokeWeight: 4,
@@ -1001,12 +1066,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           strokeOpacity: 0.6,
           strokeStyle: 'shortdash'
         });
-        
+
         polyline.setMap(mapInstance.current);
         routePolylineRef.current = polyline;
-        
+
         showAlert('error', '조용한 경로를 찾을 수 없어 일반 경로를 표시합니다.');
-        
+
       } catch (fallbackError) {
         console.error('폴백 경로도 실패:', fallbackError);
         showAlert('error', '경로를 찾을 수 없습니다. 다시 시도해주세요.');
@@ -1020,37 +1085,37 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     console.log('- 경로 포인트 수:', routePoints?.length || 0);
     console.log('- 전체 장소 수:', allPlaces?.length || 0);
     console.log('- 최대 거리:', maxDistance, 'm');
-    
+
     if (!routePoints || !allPlaces || routePoints.length === 0 || allPlaces.length === 0) {
       console.warn('❌ 경로 포인트 또는 장소 데이터가 없습니다');
       return [];
     }
-    
+
     const nearbyPlaces: Spot[] = [];
-    
+
     allPlaces.forEach((place, index) => {
       // API 응답에서 lat, lng 필드 사용 (latitude, longitude가 아님)
-      const placePoint = { 
-        lat: place.lat, 
-        lng: place.lng 
+      const placePoint = {
+        lat: place.lat,
+        lng: place.lng
       };
-      
+
       console.log(`장소 ${index + 1}: ${place.name} (${placePoint.lat}, ${placePoint.lng})`);
-      
+
       if (!placePoint.lat || !placePoint.lng) {
         console.warn(`❌ 장소 ${place.name}의 좌표가 없습니다`);
         return;
       }
-      
+
       // 경로의 각 점과 장소 사이의 거리 계산
       const distances = routePoints.map(routePoint => {
         const distance = calculateDistance(routePoint, placePoint);
         return distance;
       });
-      
+
       const minDistance = Math.min(...distances);
       console.log(`- 최단 거리: ${(minDistance / 1000).toFixed(2)}km`);
-      
+
       if (minDistance <= maxDistance) {
         nearbyPlaces.push(place);
         console.log(`✅ 포함됨: ${place.name}`);
@@ -1058,7 +1123,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         console.log(`❌ 제외됨: ${place.name} (거리: ${(minDistance / 1000).toFixed(2)}km > ${(maxDistance / 1000).toFixed(1)}km)`);
       }
     });
-    
+
     console.log(`🏞️ 경로 주변 ${maxDistance/1000}km 이내 조용한 장소: ${nearbyPlaces.length}개`);
     console.log('찾은 장소들:', nearbyPlaces.map(p => p.name));
     return nearbyPlaces;
@@ -1072,7 +1137,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     const point2 = { lat: 37.4979, lng: 127.0276 };
     const distance = calculateDistance(point1, point2);
     console.log(`🧪 거리 계산 테스트: 서울시청 ↔ 강남역 = ${(distance / 1000).toFixed(2)}km (예상: ~9.6km)`);
-    
+
     // 3km 테스트: 서울시청에서 3km 반경
     const point3 = { lat: 37.5665 + 0.027, lng: 126.9780 }; // 약 3km 북쪽
     const distance3km = calculateDistance(point1, point3);
@@ -1090,7 +1155,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       try {
         const place = markersPlacesRef.current?.[index];
         const isNearby = nearbyPlaces.some(nearbyPlace => nearbyPlace.id === place?.id);
-        
+
         if (isNearby && marker && marker.setImage) {
           // 애니메이션 강조 마커 생성
           animateMarker(marker, index);
@@ -1107,27 +1172,27 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     let growing = true;
     let animationCount = 0;
     const maxAnimations = 6; // 3번 깜빡임
-    
+
     const animate = () => {
       if (animationCount >= maxAnimations) {
         // 애니메이션 완료 후 최종 강조 마커로 설정
         setFinalHighlightMarker(marker);
         return;
       }
-      
+
       scale = growing ? scale + 0.1 : scale - 0.1;
-      
+
       if (scale >= 1.4) {
         growing = false;
       } else if (scale <= 1) {
         growing = true;
         animationCount++;
       }
-      
+
       // 크기와 색상이 변하는 마커 생성
       const pulseColor = growing ? '#4CAF50' : '#81C784';
       const size = Math.round(30 * scale);
-      
+
       const animatedImageSrc = 'data:image/svg+xml;base64,' + btoa(`
         <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
           <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${pulseColor}" stroke="#2E7D32" stroke-width="2"/>
@@ -1135,14 +1200,14 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" font-size="${size/3}" fill="white" font-weight="bold">🤫</text>
         </svg>
       `);
-      
+
       const imageSize = new (window as any).kakao.maps.Size(size, size);
       const animatedImage = new (window as any).kakao.maps.MarkerImage(animatedImageSrc, imageSize);
       marker.setImage(animatedImage);
-      
+
       setTimeout(animate, 150); // 150ms 간격으로 애니메이션
     };
-    
+
     // 애니메이션 시작 전 약간의 지연 (순차적 효과)
     setTimeout(animate, index * 100);
   };
@@ -1157,7 +1222,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
       </svg>
     `);
-    
+
     const imageSize = new (window as any).kakao.maps.Size(40, 40);
     const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
     marker.setImage(highlightImage);
@@ -1305,7 +1370,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           >
             🏁 도착지
           </div>
-          
+
           <div
             style={{
               padding: '8px 12px',
@@ -1407,7 +1472,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           })}
         />
       )}
-      
+
       {/* 주변 조용한 장소 목록 */}
       {nearbyQuietPlaces.length > 0 && (
         <div
@@ -1425,15 +1490,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             zIndex: 1000
           }}
         >
-          <div style={{ 
+          <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '12px'
           }}>
-            <h3 style={{ 
-              margin: '0', 
-              fontSize: '16px', 
+            <h3 style={{
+              margin: '0',
+              fontSize: '16px',
               fontWeight: 'bold',
               color: '#2E7D32',
               display: 'flex',
@@ -1452,18 +1517,18 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               </span>
             </h3>
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {nearbyQuietPlaces.map((place, index) => {
               // 경로와의 최단 거리 계산
-              const minDistance = routeState.recommendedRoute?.points ? 
-                Math.min(...routeState.recommendedRoute.points.map(routePoint => 
-                  calculateDistance(routePoint, { 
-                    lat: place.lat, 
-                    lng: place.lng 
+              const minDistance = routeState.recommendedRoute?.points ?
+                Math.min(...routeState.recommendedRoute.points.map(routePoint =>
+                  calculateDistance(routePoint, {
+                    lat: place.lat,
+                    lng: place.lng
                   })
                 )) : 0;
-              
+
               return (
                 <div
                   key={place.id}
@@ -1534,7 +1599,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               );
             })}
           </div>
-          
+
           <div style={{
             marginTop: '12px',
             padding: '8px',
