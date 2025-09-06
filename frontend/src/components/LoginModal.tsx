@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { authApi } from '../api/auth';
+import { api } from '../api';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -16,39 +16,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const validateUsername = (username: string) => {
-    return /^[a-zA-Z0-9]{4,20}$/.test(username);
-  };
-
-  const validatePassword = (password: string) => {
-    return /^[a-zA-Z0-9!@#$%^&*]{6,20}$/.test(password);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    if (!validateUsername(formData.nickname)) {
-      const message = '아이디는 영문+숫자 4-20자로 입력해주세요.';
-      setError(message);
-      alert(message);
-      setLoading(false);
-      return;
-    }
-
-    if (!validatePassword(formData.password)) {
-      const message = '비밀번호는 영문+숫자+특수문자(!@#$%^&*) 6-20자로 입력해주세요.';
-      setError(message);
-      alert(message);
-      setLoading(false);
-      return;
-    }
-
     try {
       const result = isLogin 
-        ? await authApi.login(formData)
-        : await authApi.register(formData);
+        ? await api.auth.login(formData)
+        : await api.auth.register(formData);
 
       if (result.success) {
         if (isLogin) {
@@ -86,14 +62,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
       zIndex: 3000
     }}>
       <div style={{
-        background: isLogin ? 'white' : 'linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%)',
-        borderRadius: isLogin ? '12px' : '20px',
+        background: 'white',
+        borderRadius: '12px',
         padding: '2rem',
         width: '90%',
         maxWidth: '400px',
         position: 'relative',
-        border: isLogin ? 'none' : '2px solid rgba(102, 126, 234, 0.2)',
-        boxShadow: isLogin ? '0 10px 40px rgba(0,0,0,0.1)' : '0 20px 60px rgba(102, 126, 234, 0.15)'
+        boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
       }}>
         <div style={{
           display: 'flex',
@@ -115,28 +90,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
         </div>
         
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            fontSize: isLogin ? '2.5rem' : '3rem',
-            marginBottom: '0.5rem'
-          }}>
-            {isLogin ? '🔑' : '🎆'}
-          </div>
           <h2 style={{ 
             margin: 0,
-            color: isLogin ? '#333' : '#667eea',
-            fontSize: isLogin ? '1.5rem' : '1.8rem',
-            fontWeight: isLogin ? '600' : '700'
+            color: '#333',
+            fontSize: '1.5rem',
+            fontWeight: '600'
           }}>
             {isLogin ? '로그인' : '회원가입'}
           </h2>
-          <p style={{
-            margin: '0.5rem 0 0 0',
-            fontSize: '0.9rem',
-            color: '#666',
-            opacity: 0.8
-          }}>
-            {isLogin ? '쉿플레이스에 오신 것을 환영합니다' : '새로운 여정을 시작해보세요'}
-          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -155,7 +116,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
                 borderRadius: '6px',
                 fontSize: '1rem'
               }}
-              placeholder="username123"
               required
             />
           </div>
@@ -175,7 +135,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
                 borderRadius: '6px',
                 fontSize: '1rem'
               }}
-              placeholder="password123!"
               required
             />
           </div>
@@ -197,15 +156,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
             style={{
               width: '100%',
               padding: '0.75rem',
-              background: isLogin ? '#667eea' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#667eea',
               color: 'white',
               border: 'none',
-              borderRadius: isLogin ? '6px' : '12px',
+              borderRadius: '6px',
               fontSize: '1rem',
-              fontWeight: isLogin ? '500' : '600',
+              fontWeight: '500',
               cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              boxShadow: isLogin ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.3)'
+              opacity: loading ? 0.7 : 1
             }}
           >
             {loading ? '처리중...' : (isLogin ? '로그인' : '회원가입')}

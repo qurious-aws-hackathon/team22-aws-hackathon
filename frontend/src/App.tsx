@@ -9,7 +9,6 @@ import ChatBot from './components/ChatBot';
 import LocationButton from './components/LocationButton';
 import { LoadingProvider } from './contexts/LoadingContext';
 import { api, type Spot } from './api';
-import { authApi } from './api/auth';
 import './App.css';
 
 type AppState = 'landing' | 'loading' | 'ready';
@@ -32,7 +31,7 @@ function App() {
           });
         },
         (error) => {
-          console.log('위치 정보를 가져올 수 없습니다:', error);
+          // 위치 정보를 가져올 수 없음
         }
       );
     }
@@ -40,7 +39,7 @@ function App() {
 
   useEffect(() => {
     // 새로고침 시 로그인 상태 확인
-    if (authApi.isLoggedIn()) {
+    if (api.auth.isLoggedIn()) {
       setAppState('loading');
       loadSpots();
     } else {
@@ -67,7 +66,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    authApi.logout();
+    api.auth.logout();
     setAppState('landing');
     setShowLoginModal(false);
     setSpots([]);

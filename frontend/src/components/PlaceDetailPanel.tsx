@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { type Spot, type Comment, api } from '../api';
-import { authApi } from '../api/auth';
-import { getScoreColor, getScoreText, getScoreEmoji } from '../utils';
+import { getScoreColor } from '../utils';
 import { useLoading } from '../contexts/LoadingContext';
 
 interface PlaceDetailPanelProps {
@@ -12,15 +11,9 @@ interface PlaceDetailPanelProps {
 }
 
 const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, position, onDelete }) => {
-  console.log('PlaceDetailPanel spot data:', spot);
-  console.log('spot.user_nickname:', spot.user_nickname);
-  
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [nickname, setNickname] = useState(() => {
-    const currentUser = authApi.getCurrentUser();
-    return currentUser?.nickname || '';
-  });
   const [likeCount, setLikeCount] = useState(spot.like_count || 0);
   const [dislikeCount, setDislikeCount] = useState(spot.dislike_count || 0);
   const { withLoading } = useLoading();
@@ -31,7 +24,7 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
   const loadComments = async () => {
     try {
-      // const commentsData = await api.comments.getComments({ 
+      // const commentsData = await api.comments.getComments({
       //   spot_id: spot.id,
       //   limit: 10
       // });
@@ -78,7 +71,7 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
         () => api.spots.deleteSpot(spot.id),
         '장소 삭제 중...'
       );
-      
+
       if (result.success) {
         alert('장소가 성공적으로 삭제되었습니다.');
         onDelete?.(spot.id);
@@ -93,8 +86,42 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
   };
 
   const handleAddComment = async () => {
-    // 임시 비활성화
-    alert('댓글 기능은 임시 비활성화되었습니다.');
+    const currentUser = api.auth.getCurrentUser();
+
+    if (!currentUser) {
+      alert('댓글을 작성하려면 로그인이 필요합니다.');
+      return;
+    }
+
+    if (!newComment.trim()) {
+      return;
+    }
+
+    try {
+      const commentData = {
+        spot_id: spot.id,
+        user_id: currentUser.id,
+        nickname: currentUser.nickname,
+        content: newComment.trim()
+      };
+
+      // API 호출 (실제 구현 시)
+      // await spotsApi.post(`/spots/${spot.id}/comments`, commentData);
+
+      // 임시로 로컬 상태에 추가
+      const newCommentObj: Comment = {
+        id: Date.now().toString(),
+        spot_id: spot.id,
+        nickname: currentUser.nickname,
+        content: newComment.trim(),
+        created_at: new Date().toISOString()
+      };
+
+      setComments(prev => [...prev, newCommentObj]);
+      setNewComment('');
+    } catch (error) {
+      alert('댓글 작성에 실패했습니다.');
+    }
   };
 
   const panelStyle: React.CSSProperties = {
@@ -154,7 +181,6 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.parentElement!.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px;">📷 이미지를 불러올 수 없습니다</div>';
               }}
-              onLoad={() => console.log('이미지 로드 성공:', spot.image_url)}
               style={{
                 width: '100%',
                 height: '100%',
@@ -163,12 +189,12 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
             />
           </div>
         ) : (
-          <div style={{ 
-            width: '100%', 
-            height: '120px', 
-            backgroundColor: '#f8f9fa', 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            width: '100%',
+            height: '120px',
+            backgroundColor: '#f8f9fa',
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             color: '#999',
             fontSize: '14px',
@@ -182,9 +208,9 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
         <div style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <div>
-              <h2 style={{ 
-                margin: 0, 
-                fontSize: '20px', 
+              <h2 style={{
+                margin: 0,
+                fontSize: '20px',
                 fontWeight: '700',
                 color: '#333'
               }}>
@@ -199,9 +225,9 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
               </div>
             </div>
             {(() => {
-              const currentUser = authApi.getCurrentUser();
+              const currentUser = api.auth.getCurrentUser();
               const canDelete = currentUser && (spot.user_id === currentUser.id || spot.user_id === 'anonymous');
-              
+
               return canDelete && (
                 <button
                   onClick={handleDelete}
@@ -244,7 +270,7 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
             >
               👍 {likeCount}
             </button>
-            
+
             <button
               onClick={handleDislike}
               style={{
@@ -295,9 +321,9 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
           {/* 댓글 섹션 */}
           <div>
-            <h4 style={{ 
-              margin: '0 0 12px 0', 
-              fontSize: '16px', 
+            <h4 style={{
+              margin: '0 0 12px 0',
+              fontSize: '16px',
               fontWeight: '600',
               color: '#333'
             }}>
@@ -306,38 +332,56 @@ const PlaceDetailPanel: React.FC<PlaceDetailPanelProps> = ({ spot, onClose, posi
 
             {/* 댓글 입력 */}
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  placeholder="댓글을 입력하세요..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #ddd',
+              {(() => {
+                const currentUser = api.auth.getCurrentUser();
+                return currentUser ? (
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="댓글을 입력하세요..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                      <button
+                        onClick={handleAddComment}
+                        disabled={!newComment.trim()}
+                        style={{
+                          padding: '8px 16px',
+                          border: 'none',
+                          borderRadius: '6px',
+                          background: !newComment.trim() ? '#ccc' : '#667eea',
+                          color: 'white',
+                          cursor: !newComment.trim() ? 'not-allowed' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        등록
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '12px',
+                    backgroundColor: '#f8f9fa',
                     borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: !newComment.trim() ? '#ccc' : '#667eea',
-                    color: 'white',
-                    cursor: !newComment.trim() ? 'not-allowed' : 'pointer',
+                    textAlign: 'center',
                     fontSize: '14px',
-                    fontWeight: '600'
-                  }}
-                >
-                  등록
-                </button>
-              </div>
+                    color: '#666'
+                  }}>
+                    댓글을 작성하려면 로그인이 필요합니다.
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 댓글 목록 */}

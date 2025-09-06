@@ -45,7 +45,6 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   // 주소 변환
   useEffect(() => {
     if (isOpen) {
-      console.log('주소 변환 시작 - 좌표:', lat, lng);
       
       // 약간의 지연을 두고 주소 변환 시도
       setTimeout(() => {
@@ -54,23 +53,19 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           
           // coord2Address 메서드 사용 (경도, 위도 순서 주의)
           geocoder.coord2Address(lng, lat, (result: any, status: any) => {
-            console.log('Geocoder 결과:', result, status);
             
             if (status === (window as any).kakao.maps.services.Status.OK && result.length > 0) {
               const addr = result[0];
-              console.log('주소 객체:', addr);
               
               let addressText = '';
               
               // 도로명 주소 우선
               if (addr.road_address) {
                 addressText = addr.road_address.address_name;
-                console.log('도로명 주소:', addressText);
               } 
               // 지번 주소 대체
               else if (addr.address) {
                 addressText = addr.address.address_name;
-                console.log('지번 주소:', addressText);
               }
               
               // 상세 주소 정보 추가
@@ -80,12 +75,10 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
               
               setAddress(addressText || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             } else {
-              console.log('주소 변환 실패, 좌표 표시');
               setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             }
           });
         } else {
-          console.log('Kakao Maps Services 로드되지 않음');
           setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         }
       }, 500);

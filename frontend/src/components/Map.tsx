@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
-import { authApi } from '../api/auth';
 import PinRegistrationModal from './PinRegistrationModal';
-import PlaceDetailPanel from './PlaceDetailPanel';
 import Alert from './Alert';
 import PlacePopulation from './Map/PlacePopulation';
 import { RealtimePopulationData } from '../api/models/population';
@@ -118,39 +116,39 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         center: new (window as any).kakao.maps.LatLng(37.5665, 126.9780),
         level: 8
       };
-      
+
       mapInstance.current = new (window as any).kakao.maps.Map(mapRef.current, options);
-      
+
       // 전역에서 접근 가능하도록 지도 인스턴스 노출
       (window as any).mapInstance = mapInstance.current;
-      
+
       // Kakao Maps API 우클릭 이벤트
       (window as any).kakao.maps.event.addListener(mapInstance.current, 'rightclick', (mouseEvent: any) => {
         const latlng = mouseEvent.latLng;
         const lat = latlng.getLat();
         const lng = latlng.getLng();
-        
+
         // 화면 좌표 계산 (메뉴 위치용)
         const rect = mapRef.current!.getBoundingClientRect();
         let screenX = rect.left + rect.width / 2;
         let screenY = rect.top + rect.height / 2;
-        
+
         // 더 정확한 화면 좌표 계산
         try {
           const projection = mapInstance.current.getProjection();
           const mapCenter = mapInstance.current.getCenter();
           const mapCenterPixel = projection.pointFromCoords(mapCenter);
           const clickPixel = projection.pointFromCoords(latlng);
-          
+
           const offsetX = clickPixel.x - mapCenterPixel.x;
           const offsetY = clickPixel.y - mapCenterPixel.y;
-          
+
           screenX = rect.left + rect.width / 2 + offsetX;
           screenY = rect.top + rect.height / 2 + offsetY;
         } catch (error) {
           console.error('화면 좌표 계산 실패:', error);
         }
-        
+
         setContextMenu({
           visible: true,
           x: screenX,
@@ -159,38 +157,28 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           lng
         });
       });
-      
+
       // 브라우저 기본 우클릭 메뉴 차단
       mapRef.current.addEventListener('contextmenu', (e: MouseEvent) => {
         e.preventDefault();
       });
-      
-      // 지도 클릭 이벤트로 InfoWindow 닫기
-      (window as any).kakao.maps.event.addListener(mapInstance.current, 'click', () => {
-        // InfoWindow 닫기
-        if (infoWindowRef.current) {
-          infoWindowRef.current.close();
-          infoWindowRef.current = null;
-        }
-      });
+
     }
   };
 
   const loadPopulationData = async () => {
     try {
-      console.log('혼잡도 데이터 로딩 시작...');
       const response = await api.population.getRealtimePopulation();
-      
+
       let populationArray = [];
       if (response && (response as any).data && Array.isArray((response as any).data)) {
         populationArray = (response as any).data;
       } else if (response && Array.isArray(response)) {
         populationArray = response;
       }
-      
-      console.log('혼잡도 데이터 로딩 완료:', populationArray.length, '개');
+
       setPopulationData(populationArray);
-      
+
     } catch (error) {
       console.error('실시간 인구밀도 데이터 로드 실패:', error);
       setPopulationData([]);
@@ -207,7 +195,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     };
 
     const config = categoryConfig[category as keyof typeof categoryConfig] || categoryConfig['기타'];
-    
+
     // 더 큰 SVG 마커 생성 (60x75px)
     const svgContent = `
       <svg width="60" height="75" viewBox="0 0 60 75" xmlns="http://www.w3.org/2000/svg">
@@ -252,15 +240,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
     // 지도 이동 (팝업이 중앙에 오도록 조정)
     const moveLatLng = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
-    
+
     // 팝업이 화면 중앙에 오도록 마커보다 위쪽으로 지도 중심 이동
     const projection = mapInstance.current.getProjection();
     const point = projection.pointFromCoords(moveLatLng);
-    
+
     // 팝업 높이만큼 위쪽으로 이동 (약 150px)
     const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y - 150);
     const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
-    
+
     mapInstance.current.setCenter(adjustedLatLng);
     mapInstance.current.setLevel(3);
 
@@ -273,16 +261,20 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       }
 
       const overlayContent = document.createElement('div');
+
+      // 현재 로그인한 사용자 정보 가져오기
+      const currentUser = api.auth.getCurrentUser();
+
       overlayContent.innerHTML = `
-        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; max-height: 400px; overflow-y: auto;">
+        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; word-wrap: break-word; overflow-wrap: break-word;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">장소 상세</h3>
-            <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">✕</button>
+            <h3 style="margin: 0; font-size: 18px; font-weight: 600; word-wrap: break-word; overflow-wrap: break-word;">장소 상세</h3>
+            <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666; flex-shrink: 0;">✕</button>
           </div>
           
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #333;">${place.name}</h2>
-            <button id="delete-btn" style="background: #ff4757; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: white; padding: 4px 8px; font-weight: 500; display: none;" title="장소 삭제">
+            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #333; word-wrap: break-word; overflow-wrap: break-word; flex: 1; min-width: 0;">${place.name}</h2>
+            <button id="delete-btn" style="background: #ff4757; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; color: white; padding: 4px 8px; font-weight: 500; display: none; flex-shrink: 0;" title="장소 삭제">
               삭제
             </button>
           </div>
@@ -299,18 +291,30 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             </span>
           </div>
           
-          ${place.description ? `<div style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #555; margin-bottom: 16px;">${place.description}</div>` : ''}
+          <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #555; margin-bottom: 16px; 
+             word-break: break-all; 
+             white-space: normal;">
+            ${place.description}
+           </div>
           
           <div>
             <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #333;">댓글</h4>
-            <div style="margin-bottom: 12px;">
-              <input id="nickname-input" type="text" placeholder="닉네임" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 8px; box-sizing: border-box;">
-              <div style="display: flex; gap: 8px;">
-                <input id="comment-input" type="text" placeholder="댓글을 입력하세요..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
-                <button id="comment-btn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer; font-size: 14px;">등록</button>
+            ${currentUser ? `
+              <div style="margin-bottom: 12px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+                  👤 ${currentUser.nickname}
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <input id="comment-input" type="text" placeholder="댓글을 입력하세요..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 0; word-wrap: break-word;">
+                  <button id="comment-btn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer; font-size: 14px; flex-shrink: 0;">등록</button>
+                </div>
               </div>
-            </div>
-            <div id="comments-list" style="border: 1px solid #eee; border-radius: 8px; max-height: 150px; overflow-y: auto; padding: 12px; font-size: 14px; color: #666;">
+            ` : `
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 6px; text-align: center; font-size: 14px; color: #666; margin-bottom: 12px;">
+                댓글을 작성하려면 로그인이 필요합니다.
+              </div>
+            `}
+            <div id="comments-list" style="border: 1px solid #eee; border-radius: 8px; max-height: 174px; overflow-y: auto; padding: 8px; font-size: 14px; color: #666;">
               댓글을 불러오는 중...
             </div>
           </div>
@@ -390,14 +394,14 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       }
 
       if (deleteBtn) {
-        const currentUser = authApi.getCurrentUser();
+        const currentUser = api.auth.getCurrentUser();
         const canDelete = currentUser && (place.user_id === currentUser.id || place.user_id === 'anonymous');
-        
+
         if (canDelete) {
           deleteBtn.style.display = 'inline-block';
           deleteBtn.onclick = async () => {
             if (!confirm('정말로 이 장소를 삭제하시겠습니까?')) return;
-            
+
             try {
               const result = await api.spots.deleteSpot(place.id);
               if (result.success) {
@@ -417,28 +421,31 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         }
       }
 
-      if (commentBtn && commentInput && nicknameInput) {
+      if (commentBtn && commentInput && currentUser) {
         const addComment = async () => {
-          const nickname = nicknameInput.value.trim();
-          const comment = commentInput.value.trim();
-          
-          if (!nickname || !comment) return;
-          
+          const comment = (commentInput as HTMLInputElement).value.trim();
+
+          if (!comment) return;
+
           try {
-            await api.comments.createComment({
+            const requestData = {
               spot_id: place.id,
               content: comment,
-              nickname: nickname
-            });
-            commentInput.value = '';
+              user_id: currentUser.id,
+              nickname: currentUser.nickname
+            };
+
+            const result = await api.comments.createComment(requestData);
+            (commentInput as HTMLInputElement).value = '';
             loadComments();
+            alert('댓글이 등록되었습니다.');
           } catch (error) {
-            console.error('댓글 등록 실패:', error);
+            alert('댓글 등록에 실패했습니다: ' + (error as Error).message);
           }
         };
 
         commentBtn.onclick = addComment;
-        commentInput.onkeypress = (e) => {
+        (commentInput as HTMLInputElement).onkeypress = (e) => {
           if (e.key === 'Enter') addComment();
         };
       }
@@ -448,18 +455,18 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         try {
           const comments = await api.comments.getComments({ spot_id: place.id, limit: 5 });
           const commentsList = overlayContent.querySelector('#comments-list');
-          
+
           if (commentsList) {
             if (comments.length === 0) {
               commentsList.innerHTML = '<div style="text-align: center; color: #999;">첫 번째 댓글을 남겨보세요!</div>';
             } else {
               commentsList.innerHTML = comments.map(comment => `
-                <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                <div style="margin-bottom: 6px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; min-height: 50px; word-wrap: break-word; overflow-wrap: break-word;">
                   <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="font-weight: 600; font-size: 13px;">${comment.nickname || '익명'}</span>
-                    <span style="font-size: 12px; color: #999;">${new Date(comment.created_at).toLocaleDateString()}</span>
+                    <span style="font-weight: 600; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word; flex: 1; min-width: 0;">${comment.nickname || '익명'}</span>
+                    <span style="font-size: 12px; color: #999; flex-shrink: 0; margin-left: 8px;">${new Date(comment.created_at).toLocaleDateString()}</span>
                   </div>
-                  <div style="font-size: 14px; color: #555;">${comment.content}</div>
+                  <div style="font-size: 14px; color: #555; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">${comment.content}</div>
                 </div>
               `).join('');
             }
@@ -480,7 +487,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const showInfoWindowForPlace = (place: Spot) => {
     // 해당 장소의 마커 찾기
     const markerIndex = markersPlacesRef.current.findIndex(p => p.id === place.id);
-    
+
     if (markerIndex !== -1 && markersRef.current[markerIndex]) {
       const targetMarker = markersRef.current[markerIndex];
       // InfoWindow 표시
@@ -492,10 +499,10 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     if (!mapInstance.current) return;
 
     const moveLatLng = new (window as any).kakao.maps.LatLng(spot.lat, spot.lng);
-    
+
     mapInstance.current.setCenter(moveLatLng);
     mapInstance.current.setLevel(3);
-    
+
     setTimeout(() => {
       if (mapInstance.current) {
         mapInstance.current.relayout();
@@ -523,7 +530,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const createNaturalCircles = (latitude: number, longitude: number, color: string, intensity: number): any[] => {
     const circles: any[] = [];
     const center = new (window as any).kakao.maps.LatLng(latitude, longitude);
-    
+
     // 다중 원형으로 자연스러운 그라데이션 효과 생성
     const layers = [
       { radius: 100, opacity: Math.min(0.6, intensity / 100 * 0.6) },
@@ -531,7 +538,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       { radius: 300, opacity: Math.min(0.2, intensity / 100 * 0.2) },
       { radius: 400, opacity: Math.min(0.1, intensity / 100 * 0.1) }
     ];
-    
+
     layers.forEach(layer => {
       const circle = new (window as any).kakao.maps.Circle({
         center: center,
@@ -540,11 +547,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         fillColor: color,
         fillOpacity: layer.opacity
       });
-      
+
       circle.setMap(mapInstance.current);
       circles.push(circle);
     });
-    
+
     return circles;
   };
 
@@ -558,7 +565,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     populationData.forEach((data: any) => {
       const latitude = data.lat;
       const longitude = data.lng;
-      
+
       if (!latitude || !longitude) {
         console.warn('위도/경도 정보가 없습니다:', data);
         return;
@@ -566,7 +573,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       const crowdLevel = data.crowdLevel || data.crowd_level || 50;
       const color = getCrowdColor(crowdLevel);
-      
+
       // 호버용 투명 원형 영역
       const hoverCircle = new (window as any).kakao.maps.Circle({
         center: new (window as any).kakao.maps.LatLng(latitude, longitude),
@@ -590,14 +597,14 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             </div>
           </div>
         `;
-        
+
         const tempInfoWindow = new (window as any).kakao.maps.InfoWindow({
           content: content,
           removable: false
         });
-        
+
         tempInfoWindow.open(mapInstance.current, new (window as any).kakao.maps.LatLng(latitude, longitude));
-        
+
         (window as any).kakao.maps.event.addListener(hoverCircle, 'mouseout', () => {
           tempInfoWindow.close();
         });
@@ -617,7 +624,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     populationData.forEach((data: any) => {
       const latitude = data.lat;
       const longitude = data.lng;
-      
+
       if (!latitude || !longitude) {
         console.warn('위도/경도 정보가 없습니다:', data);
         return;
@@ -625,16 +632,16 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       const noiseLevel = data.noiseLevel || data.noise_level || 40;
       const color = getNoiseColor(noiseLevel);
-      
+
       // 소음레벨을 작은 다중 원형으로 표시
       const circles = createNaturalCircles(latitude, longitude, color, noiseLevel);
-      
+
       // 소음레벨은 더 작은 크기로 조정
       circles.forEach((circle, index) => {
         const smallRadius = [60, 120, 180, 240][index]; // 더 작은 반경
         circle.setRadius(smallRadius);
       });
-      
+
       circles.forEach(circle => noiseCirclesRef.current.push(circle));
     });
   };
@@ -647,7 +654,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     places.forEach(place => {
       const position = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
       const markerIcon = createMarkerIcon(place.category || '기타');
-      
+
       const marker = new (window as any).kakao.maps.Marker({
         position,
         map: mapInstance.current,
@@ -657,10 +664,10 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       (window as any).kakao.maps.event.addListener(marker, 'click', () => {
         // InfoWindow 표시
         showInfoWindow(marker, place);
-        
+
         // 지도 중심을 해당 위치로 이동
         moveToSpot(place);
-        
+
         // 외부 콜백 호출
         onPlaceClick?.(place);
       });
@@ -678,16 +685,16 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     }
 
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
-    
+
     const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#FF0000">
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
       </svg>
     `);
-    
+
     const imageSize = new (window as any).kakao.maps.Size(32, 32);
     const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
-    
+
     currentLocationMarkerRef.current = new (window as any).kakao.maps.Marker({
       position,
       image: markerImage,
@@ -702,19 +709,19 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     }
 
     setIsLocating(true);
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const moveLatLng = new (window as any).kakao.maps.LatLng(latitude, longitude);
-        
+
         if (mapInstance.current) {
           mapInstance.current.setCenter(moveLatLng);
           mapInstance.current.setLevel(3);
-          
+
           addCurrentLocationMarker(latitude, longitude);
         }
-        
+
         setIsLocating(false);
       },
       (error) => {
@@ -732,7 +739,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   const handleContextMenuAction = (action: string) => {
     const { lat, lng } = contextMenu;
-    
+
     switch (action) {
       case 'register':
         setPinModalData({ lat, lng });
@@ -748,7 +755,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         window.alert(`도착지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         break;
     }
-    
+
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
@@ -765,8 +772,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       await withLoading(async () => {
         // 조용함 점수 계산 (소음도 기반)
         const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
-        
-        const currentUser = authApi.getCurrentUser();
+
+        const currentUser = api.auth.getCurrentUser();
         const spotData = {
           name: data.name,
           description: data.description,
@@ -780,25 +787,23 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           user_id: currentUser ? currentUser.id : 'anonymous'
         };
 
-        console.log('API 호출 데이터:', spotData);
-        
+
         // API 호출 - 실제 네트워크 요청
         const response = await api.spots.createSpot(spotData);
-        console.log('API 응답:', response);
-        
+
         return response;
       }, '쉿플레이스 등록 중...');
-      
+
       // 성공 시 모달 닫기
       setShowPinModal(false);
-      
+
       showAlert('success', `"${data.name}" 장소가 성공적으로 등록되었습니다!`);
-      
+
       // 스팟 목록 새로고침
       if (onSpotsUpdate) {
         onSpotsUpdate();
       }
-      
+
     } catch (error) {
       console.error('스팟 등록 실패:', error);
       showAlert('error', '스팟 등록에 실패했습니다. 다시 시도해주세요.');
@@ -808,7 +813,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div id="map" ref={mapRef} style={{ width: '100%', height: '100%' }} />
-      
+
       {/* 컨텍스트 메뉴 */}
       {contextMenu.visible && (
         <div
@@ -839,7 +844,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           >
             📍 핀 등록
           </div>
-          
+
           <div
             style={{
               padding: '8px 12px',
@@ -853,7 +858,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           >
             🚀 출발지
           </div>
-          
+
           <div
             style={{
               padding: '8px 12px',
@@ -867,7 +872,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           >
             🔄 경유지
           </div>
-          
+
           <div
             style={{
               padding: '8px 12px',
@@ -882,7 +887,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           </div>
         </div>
       )}
-      
+
       <button
         onClick={moveToCurrentLocation}
         disabled={isLocating}
@@ -944,20 +949,19 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         onAlert={showAlert}
         onSubmit={handlePinRegistration}
       />
-      
+
       <Alert
         type={alert.type}
         message={alert.message}
         isOpen={alert.isOpen}
         onClose={closeAlert}
       />
-      
+
       {/* Congestion Overlay */}
       {showCongestion && (
-        <PlacePopulation 
-          map={mapInstance.current} 
+        <PlacePopulation
+          map={mapInstance.current}
           congestionData={populationData.map(data => {
-            console.log('혼잡도 데이터 매핑:', data);
             return {
               lat: data.lat,
               lng: data.lng,

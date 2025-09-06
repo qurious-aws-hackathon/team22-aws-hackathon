@@ -1,4 +1,4 @@
-import { authApi } from '../api/auth';
+import { api } from '../api';
 
 interface TopBarProps {
   spotsCount: number;
@@ -6,7 +6,7 @@ interface TopBarProps {
 }
 
 const TopBar: React.FC<TopBarProps> = ({ spotsCount, onLogout }) => {
-  const currentUser = authApi.getCurrentUser();
+  const currentUser = api.auth.getCurrentUser();
   
   return (
     <header className="top-bar">

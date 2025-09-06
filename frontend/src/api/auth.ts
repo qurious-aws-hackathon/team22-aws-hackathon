@@ -4,18 +4,14 @@ import { LoginRequest, RegisterRequest, AuthResponse, User } from './models/user
 export const authApi = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     try {
-      const response = await fetch('https://api.shitplace.net/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
+      const response = await spotsClient.post('/auth/login', {
+        nickname: credentials.nickname,  // Lambda가 nickname을 기대할 수 있음
+        password: credentials.password
       });
       
-      const data = await response.json();
+      const data = response.data;
       
       if (data.success && data.user) {
-        // 로컬 스토리지에 사용자 정보 저장
         localStorage.setItem('currentUser', JSON.stringify(data.user));
         localStorage.setItem('authToken', data.token || 'temp-token');
       }
@@ -25,25 +21,21 @@ export const authApi = {
       console.error('Login API Error:', error);
       return {
         success: false,
-        message: '로그인에 실패했습니다.'
+        message: error.response?.data?.message || '로그인에 실패했습니다.'
       };
     }
   },
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
-      const response = await fetch('https://api.shitplace.net/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userData)
+      const response = await spotsClient.post('/auth/register', {
+        nickname: userData.nickname,  // Lambda가 nickname을 기대할 수 있음
+        password: userData.password
       });
       
-      const data = await response.json();
+      const data = response.data;
       
       if (data.success && data.user) {
-        // 로컬 스토리지에 사용자 정보 저장
         localStorage.setItem('currentUser', JSON.stringify(data.user));
         localStorage.setItem('authToken', data.token || 'temp-token');
       }
@@ -53,7 +45,7 @@ export const authApi = {
       console.error('Register API Error:', error);
       return {
         success: false,
-        message: '회원가입에 실패했습니다.'
+        message: error.response?.data?.message || '회원가입에 실패했습니다.'
       };
     }
   },

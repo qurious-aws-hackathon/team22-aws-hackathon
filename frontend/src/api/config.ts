@@ -48,7 +48,6 @@ export const chatClient = axios.create({
   // 요청 인터셉터
   client.interceptors.request.use(
     config => {
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, config.data);
       return config;
     },
     error => {
@@ -60,7 +59,6 @@ export const chatClient = axios.create({
   // 응답 인터셉터
   client.interceptors.response.use(
     response => {
-      console.log(`API Response: ${response.config.url}`, response.data);
       return response;
     },
     error => {
