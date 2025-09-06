@@ -1188,36 +1188,82 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  // 마커 애니메이션 효과
+  // 마커 애니메이션 효과 - 고퀄리티 펄스 효과
   const animateMarker = (marker: any, index: number) => {
-    let scale = 1;
-    let growing = true;
-    let animationCount = 0;
-    const maxAnimations = 6; // 3번 깜빡임
+    let pulseCount = 0;
+    const maxPulses = 8; // 4번 펄스
+    let isExpanding = true;
+    let scale = 1.0;
     
     const animate = () => {
-      if (animationCount >= maxAnimations) {
+      if (pulseCount >= maxPulses) {
         // 애니메이션 완료 후 최종 강조 마커로 설정
         setFinalHighlightMarker(marker);
         return;
       }
       
-      scale = growing ? scale + 0.1 : scale - 0.1;
-      
-      if (scale >= 1.4) {
-        growing = false;
-      } else if (scale <= 1) {
-        growing = true;
-        animationCount++;
+      if (isExpanding) {
+        scale += 0.15;
+        if (scale >= 1.8) {
+          isExpanding = false;
+        }
+      } else {
+        scale -= 0.15;
+        if (scale <= 1.0) {
+          isExpanding = true;
+          pulseCount++;
+        }
       }
       
-      // 크기와 색상이 변하는 마커 생성
-      const pulseColor = growing ? '#4CAF50' : '#81C784';
-      const size = Math.round(30 * scale);
+      // 고퀄리티 펄스 마커 생성
+      const intensity = (scale - 1) / 0.8; // 0~1 사이 값
+      const glowSize = Math.round(50 * scale);
+      const coreSize = 32;
       
-      const animatedImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${pulseColor}" stroke="#2E7D32" stroke-width="2"/>
+      const animatedImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="${glowSize}" height="${glowSize}" viewBox="0 0 ${glowSize} ${glowSize}">
+          <defs>
+            <radialGradient id="pulseGradient${index}" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:${0.9 - intensity * 0.3}" />
+              <stop offset="60%" style="stop-color:#66BB6A;stop-opacity:${0.7 - intensity * 0.4}" />
+              <stop offset="100%" style="stop-color:#81C784;stop-opacity:${0.3 - intensity * 0.3}" />
+            </radialGradient>
+            <filter id="glow${index}" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="${2 + intensity * 3}" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          
+          <!-- 외부 펄스 링 -->
+          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${glowSize/2 - 5}" 
+                  fill="url(#pulseGradient${index})" 
+                  opacity="${0.6 - intensity * 0.4}"/>
+          
+          <!-- 중간 링 -->
+          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${coreSize/2 + 8}" 
+                  fill="none" 
+                  stroke="#4CAF50" 
+                  stroke-width="${2 + intensity}" 
+                  opacity="${0.8 - intensity * 0.3}"/>
+          
+          <!-- 코어 마커 -->
+          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${coreSize/2}" 
+                  fill="#2E7D32" 
+                  stroke="white" 
+                  stroke-width="3" 
+                  filter="url(#glow${index})"/>
+          
+          <!-- 중앙 아이콘 -->
+          <text x="${glowSize/2}" y="${glowSize/2 + 4}" 
+                text-anchor="middle" 
+                font-size="16" 
+                fill="white" 
+                font-weight="bold">🤫</text>
+        </svg>
+      `);
           <circle cx="${size/2}" cy="${size/2}" r="${size/3}" fill="#A5D6A7" opacity="0.8"/>
           <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" font-size="${size/3}" fill="white" font-weight="bold">🤫</text>
         </svg>
@@ -1234,18 +1280,47 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     setTimeout(animate, index * 100);
   };
 
-  // 최종 강조 마커 설정
+  // 최종 강조 마커 설정 - 고퀄리티 디자인
   const setFinalHighlightMarker = (marker: any) => {
-    const highlightImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="18" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
-        <circle cx="20" cy="20" r="12" fill="#81C784"/>
-        <circle cx="20" cy="20" r="6" fill="#A5D6A7" opacity="0.8"/>
-        <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
+    const highlightImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
+        <defs>
+          <radialGradient id="finalGradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+            <stop offset="70%" style="stop-color:#4CAF50;stop-opacity:0.8" />
+            <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:0.6" />
+          </radialGradient>
+          <filter id="finalGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge> 
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        
+        <!-- 외부 글로우 링 -->
+        <circle cx="25" cy="25" r="23" fill="url(#finalGradient)" opacity="0.4"/>
+        
+        <!-- 중간 링 -->
+        <circle cx="25" cy="25" r="18" fill="none" stroke="#4CAF50" stroke-width="2" opacity="0.7"/>
+        
+        <!-- 메인 마커 -->
+        <circle cx="25" cy="25" r="15" fill="#2E7D32" stroke="white" stroke-width="3" filter="url(#finalGlow)"/>
+        
+        <!-- 내부 하이라이트 -->
+        <circle cx="25" cy="25" r="10" fill="#4CAF50" opacity="0.8"/>
+        
+        <!-- 중앙 아이콘 -->
+        <text x="25" y="30" text-anchor="middle" font-size="18" fill="white" font-weight="bold">🤫</text>
+        
+        <!-- 작은 반짝임 효과 -->
+        <circle cx="20" cy="20" r="2" fill="white" opacity="0.9"/>
+        <circle cx="30" cy="22" r="1.5" fill="white" opacity="0.7"/>
       </svg>
     `);
     
-    const imageSize = new (window as any).kakao.maps.Size(40, 40);
+    const imageSize = new (window as any).kakao.maps.Size(50, 50);
     const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
     marker.setImage(highlightImage);
   };
