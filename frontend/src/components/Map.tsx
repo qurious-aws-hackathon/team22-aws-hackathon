@@ -84,6 +84,9 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const [searchRadius, setSearchRadius] = useState<number>(3000); // 기본 3km
 
   useEffect(() => {
+    // 거리 계산 함수 테스트
+    testDistanceCalculation();
+    
     initializeMap();
     // 지도 초기화 후 혼잡도 데이터 로드
     setTimeout(() => {
@@ -993,9 +996,18 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     const nearbyPlaces: Spot[] = [];
     
     allPlaces.forEach((place, index) => {
-      const placePoint = { lat: place.latitude, lng: place.longitude };
+      // API 응답에서 lat, lng 필드 사용 (latitude, longitude가 아님)
+      const placePoint = { 
+        lat: place.lat || place.latitude, 
+        lng: place.lng || place.longitude 
+      };
       
       console.log(`장소 ${index + 1}: ${place.name} (${placePoint.lat}, ${placePoint.lng})`);
+      
+      if (!placePoint.lat || !placePoint.lng) {
+        console.warn(`❌ 장소 ${place.name}의 좌표가 없습니다`);
+        return;
+      }
       
       // 경로의 각 점과 장소 사이의 거리 계산
       const distances = routePoints.map(routePoint => {
@@ -1017,6 +1029,21 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     console.log(`🏞️ 경로 주변 ${maxDistance/1000}km 이내 조용한 장소: ${nearbyPlaces.length}개`);
     console.log('찾은 장소들:', nearbyPlaces.map(p => p.name));
     return nearbyPlaces;
+  };
+
+  // 거리 계산 함수 테스트
+  const testDistanceCalculation = () => {
+    // 서울 시청 (37.5665, 126.9780)과 강남역 (37.4979, 127.0276) 사이 거리
+    // 실제 거리: 약 9.6km
+    const point1 = { lat: 37.5665, lng: 126.9780 };
+    const point2 = { lat: 37.4979, lng: 127.0276 };
+    const distance = calculateDistance(point1, point2);
+    console.log(`🧪 거리 계산 테스트: 서울시청 ↔ 강남역 = ${(distance / 1000).toFixed(2)}km (예상: ~9.6km)`);
+    
+    // 3km 테스트: 서울시청에서 3km 반경
+    const point3 = { lat: 37.5665 + 0.027, lng: 126.9780 }; // 약 3km 북쪽
+    const distance3km = calculateDistance(point1, point3);
+    console.log(`🧪 3km 테스트: ${(distance3km / 1000).toFixed(2)}km (예상: ~3km)`);
   };
 
   // 주변 조용한 장소 마커 강조 (애니메이션 포함)
@@ -1335,7 +1362,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         <PlacePopulation 
           map={mapInstance.current} 
           congestionData={populationData.map(data => {
-            console.log('혼잡도 데이터 매핑:', data);
+            //console.log('혼잡도 데이터 매핑:', data);
             return {
               lat: data.lat,
               lng: data.lng,
@@ -1453,7 +1480,10 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               // 경로와의 최단 거리 계산
               const minDistance = routeState.recommendedRoute?.points ? 
                 Math.min(...routeState.recommendedRoute.points.map(routePoint => 
-                  calculateDistance(routePoint, { lat: place.latitude, lng: place.longitude })
+                  calculateDistance(routePoint, { 
+                    lat: place.lat || place.latitude, 
+                    lng: place.lng || place.longitude 
+                  })
                 )) : 0;
               
               return (
