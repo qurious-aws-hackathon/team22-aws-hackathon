@@ -957,17 +957,9 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       try {
         const place = markersPlacesRef.current?.[index];
         if (place && marker && marker.setImage) {
-          // 기본 마커 이미지로 복원
-          const defaultImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
-              <circle cx="15" cy="15" r="12" fill="#2196F3" stroke="white" stroke-width="2"/>
-              <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
-            </svg>
-          `);
-          
-          const imageSize = new (window as any).kakao.maps.Size(30, 30);
-          const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
-          marker.setImage(defaultImage);
+          // 기존 createMarkerIcon 함수로 원래 디자인 복원
+          const originalIcon = createMarkerIcon(place.category || '기타');
+          marker.setImage(originalIcon);
         }
       } catch (error) {
         console.warn(`마커 ${index} 초기화 실패:`, error);
@@ -1175,40 +1167,47 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  // 마커 강조 효과 - 빨간색 테두리
+  // 마커 강조 효과 - 기존 물방울 디자인에 빨간색 테두리
   const animateMarker = (marker: any, index: number) => {
     const originalPlace = markersPlacesRef.current[index];
     if (!originalPlace) return;
     
-    // 기존 디자인에 빨간색 테두리 추가
+    // 기존 물방울 디자인에 빨간색 테두리 추가
     const categoryConfig = {
       '카페': { emoji: '☕', color: '#FF6B9D' },
-      '도서관': { emoji: '📚', color: '#4FC3F7' },
-      '공원': { emoji: '🌳', color: '#66BB6A' },
-      '박물관': { emoji: '🏛️', color: '#FFB74D' },
-      '갤러리': { emoji: '🎨', color: '#BA68C8' },
-      '기타': { emoji: '📍', color: '#78909C' }
+      '도서관': { emoji: '📚', color: '#4ECDC4' },
+      '공원': { emoji: '🌳', color: '#45B7D1' },
+      '기타': { emoji: '📍', color: '#96CEB4' }
     };
     
     const config = categoryConfig[originalPlace.category as keyof typeof categoryConfig] || categoryConfig['기타'];
     
     const highlightSvg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="75" viewBox="0 0 60 75">
+      <svg width="60" height="75" viewBox="0 0 60 75" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="grad${index}" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:${config.color};stop-opacity:0.9" />
-            <stop offset="100%" style="stop-color:${config.color};stop-opacity:0.7" />
-          </linearGradient>
+          <filter id="shadow${index}" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+          </filter>
         </defs>
-        <ellipse cx="30" cy="67" rx="25" ry="8" fill="rgba(0,0,0,0.2)"/>
-        <circle cx="30" cy="30" r="25" fill="url(#grad${index})" stroke="#FF0000" stroke-width="3"/>
-        <text x="30" y="38" text-anchor="middle" font-size="20" fill="white">${config.emoji}</text>
+        <path d="M30 5C16.193 5 5 16.193 5 30c0 22.5 25 40 25 40s25-17.5 25-40C55 16.193 43.807 5 30 5z" 
+              fill="${config.color}" 
+              stroke="#FF0000" 
+              stroke-width="3"
+              filter="url(#shadow${index})"/>
+        <circle cx="30" cy="30" r="18" fill="white" opacity="0.9"/>
+        <text x="30" y="38" text-anchor="middle" font-size="24" fill="${config.color}">${config.emoji}</text>
       </svg>
     `;
     
     const highlightImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(highlightSvg);
     const imageSize = new (window as any).kakao.maps.Size(60, 75);
-    const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
+    const highlightImage = new (window as any).kakao.maps.MarkerImage(
+      highlightImageSrc, 
+      imageSize,
+      {
+        offset: new (window as any).kakao.maps.Point(30, 75)
+      }
+    );
     
     marker.setImage(highlightImage);
   };
