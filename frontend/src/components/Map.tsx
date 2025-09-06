@@ -731,6 +731,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         }));
         addRouteMarker(lat, lng, 'start');
         console.log('출발지 설정:', startPoint);
+        showAlert('success', '🚀 출발지가 설정되었습니다. 도착지를 선택해주세요.');
         break;
       case 'end':
         if (!startPointRef.current) {
@@ -748,15 +749,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         console.log('🤫 조용한 경로 탐색 시작:', startPointRef.current, '→', endPoint);
         drawQuietRoute(startPointRef.current, endPoint);
         break;
-      case 'route-mode':
-        console.log('경로 모드 진입');
-        isRouteModeRef.current = true;
-        setRouteState(prev => {
-          const newState = { ...prev, isRouteMode: true };
-          console.log('새로운 routeState:', newState);
-          return newState;
-        });
-        break;
       case 'clear-route':
         clearRoute();
         break;
@@ -769,7 +761,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end') => {
-    if (!mapInstance.current) return;
+    if (!mapInstance.current) {
+      console.error('지도 인스턴스가 없습니다');
+      return;
+    }
+
+    console.log(`${type} 마커 추가 중:`, lat, lng);
 
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
     const color = type === 'start' ? '#4CAF50' : '#F44336';
@@ -792,6 +789,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
     
     routeMarkersRef.current.push(marker);
+    console.log(`${type} 마커 추가 완료. 총 경로 마커 수:`, routeMarkersRef.current.length);
   };
 
   const clearRoute = () => {
@@ -1127,20 +1125,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
           >
             🏁 도착지
-          </div>
-          
-          <div
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              borderBottom: '1px solid #eee',
-              fontSize: '14px'
-            }}
-            onClick={() => handleContextMenuAction('route-mode')}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-          >
-            🗺️ 경로찾기 모드
           </div>
           
           <div
