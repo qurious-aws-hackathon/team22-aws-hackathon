@@ -717,17 +717,131 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         setShowPinModal(true);
         break;
       case 'start':
-        window.alert(`출발지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        clearRoute();
+        const startPoint = { lat, lng };
+        startPointRef.current = startPoint;
+        isRouteModeRef.current = true;
+        setRouteState(prev => ({
+          ...prev,
+          startPoint,
+          isRouteMode: true
+        }));
+        addRouteMarker(lat, lng, 'start');
+        console.log('출발지 설정:', startPoint);
+        break;
+      case 'end':
+        if (!startPointRef.current) {
+          alert('먼저 출발지를 설정해주세요.');
+          break;
+        }
+        const endPoint = { lat, lng };
+        endPointRef.current = endPoint;
+        setRouteState(prev => ({
+          ...prev,
+          endPoint
+        }));
+        addRouteMarker(lat, lng, 'end');
+        console.log('도착지 설정:', endPoint);
+        console.log('🤫 조용한 경로 탐색 시작:', startPointRef.current, '→', endPoint);
+        drawQuietRoute(startPointRef.current, endPoint);
+        break;
+      case 'route-mode':
+        console.log('경로 모드 진입');
+        isRouteModeRef.current = true;
+        setRouteState(prev => {
+          const newState = { ...prev, isRouteMode: true };
+          console.log('새로운 routeState:', newState);
+          return newState;
+        });
+        break;
+      case 'clear-route':
+        clearRoute();
         break;
       case 'waypoint':
         window.alert(`경유지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
         break;
-      case 'destination':
-        window.alert(`도착지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        break;
     }
     
     setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end') => {
+    if (!mapInstance.current) return;
+
+    const position = new (window as any).kakao.maps.LatLng(lat, lng);
+    const color = type === 'start' ? '#4CAF50' : '#F44336';
+    const label = type === 'start' ? 'S' : 'E';
+    
+    const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
+        <text x="20" y="28" text-anchor="middle" font-size="18" fill="white" font-weight="bold">${label}</text>
+      </svg>
+    `);
+    
+    const imageSize = new (window as any).kakao.maps.Size(40, 40);
+    const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
+    
+    const marker = new (window as any).kakao.maps.Marker({
+      position,
+      image: markerImage,
+      map: mapInstance.current
+    });
+    
+    routeMarkersRef.current.push(marker);
+  };
+
+  const clearRoute = () => {
+    // 경로 마커들 제거
+    routeMarkersRef.current.forEach(marker => marker.setMap(null));
+    routeMarkersRef.current = [];
+    
+    // 경로 폴리라인 제거
+    if (routePolylineRef.current) {
+      routePolylineRef.current.setMap(null);
+      routePolylineRef.current = null;
+    }
+    
+    // 상태 초기화
+    startPointRef.current = null;
+    endPointRef.current = null;
+    isRouteModeRef.current = false;
+    
+    setRouteState({
+      startPoint: null,
+      endPoint: null,
+      isRouteMode: false,
+      recommendedRoute: null
+    });
+    
+    console.log('경로 초기화 완료');
+  };
+
+  const drawQuietRoute = async (start: LatLng, end: LatLng) => {
+    try {
+      console.log('조용한 경로 탐색 중...', start, '→', end);
+      
+      // 임시로 직선 경로 그리기 (실제로는 Kakao API 호출)
+      const startPosition = new (window as any).kakao.maps.LatLng(start.lat, start.lng);
+      const endPosition = new (window as any).kakao.maps.LatLng(end.lat, end.lng);
+      
+      const linePath = [startPosition, endPosition];
+      
+      const polyline = new (window as any).kakao.maps.Polyline({
+        path: linePath,
+        strokeWeight: 5,
+        strokeColor: '#4CAF50',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid'
+      });
+      
+      polyline.setMap(mapInstance.current);
+      routePolylineRef.current = polyline;
+      
+      console.log('경로 그리기 완료');
+    } catch (error) {
+      console.error('경로 탐색 실패:', error);
+    }
   };
 
   const handlePinRegistration = async (data: {
@@ -850,11 +964,38 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               cursor: 'pointer',
               fontSize: '14px'
             }}
-            onClick={() => handleContextMenuAction('destination')}
+            onClick={() => handleContextMenuAction('end')}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
           >
             🏁 도착지
+          </div>
+          
+          <div
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              borderBottom: '1px solid #eee',
+              fontSize: '14px'
+            }}
+            onClick={() => handleContextMenuAction('route-mode')}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+          >
+            🗺️ 경로찾기 모드
+          </div>
+          
+          <div
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+            onClick={() => handleContextMenuAction('clear-route')}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+          >
+            🗑️ 경로 지우기
           </div>
         </div>
       )}
