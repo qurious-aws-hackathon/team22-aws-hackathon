@@ -10,9 +10,11 @@ const TopBar: React.FC<TopBarProps> = ({ spotsCount, onLogout }) => {
   
   return (
     <header className="top-bar">
-      <div className="top-bar-content">
-        <h1>🤫 쉿플레이스</h1>
-        <p>조용하고 한적한 곳을 찾아보세요</p>
+      <div className="top-bar-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1>🤫 쉿플레이스</h1>
+          <p>조용하고 한적한 곳을 찾아보세요</p>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {currentUser && (
             <span style={{ color: 'white', fontSize: '0.9rem' }}>
