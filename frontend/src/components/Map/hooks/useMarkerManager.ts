@@ -1,4 +1,4 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback } from 'react';
 import { Spot } from '../../../api';
 
 interface MarkerConfig {

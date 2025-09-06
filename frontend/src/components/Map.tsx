@@ -2,13 +2,11 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { Spot, api } from '../api';
 import { useMapInstance } from './Map/hooks/useMapInstance';
 import { useMarkerManager } from './Map/hooks/useMarkerManager';
-import { useOverlayManager } from './Map/hooks/useOverlayManager';
 import { useRouteManager } from './Map/hooks/useRouteManager';
 import { usePopulationOverlay } from './Map/hooks/usePopulationOverlay';
 import { useContextMenu } from './Map/hooks/useContextMenu';
 import { useLocationManager } from './Map/hooks/useLocationManager';
 import { useMapData } from './Map/hooks/useMapData';
-import { usePerformanceMonitor } from './Map/hooks/usePerformanceMonitor';
 import PinRegistrationModal from './PinRegistrationModal';
 import Alert from './Alert';
 import PlacePopulation from './Map/PlacePopulation';
@@ -37,7 +35,6 @@ const Map: React.FC<MapProps> = React.memo(({
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalData, setPinModalData] = useState({ lat: 0, lng: 0 });
   const [nearbyQuietPlaces, setNearbyQuietPlaces] = useState<Spot[]>([]);
-  const [selectedSpotForPanel, setSelectedSpotForPanel] = useState<Spot | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [alert, setAlert] = useState<{
@@ -51,7 +48,6 @@ const Map: React.FC<MapProps> = React.memo(({
   });
 
   const { withLoading } = useLoading();
-  const { startRender, endRender } = usePerformanceMonitor('Map');
 
   // Initialize map instance
   const mapOptions = useMemo(() => ({
@@ -82,31 +78,14 @@ const Map: React.FC<MapProps> = React.memo(({
     setAlert(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // Initialize managers with callbacks
-  const overlayCallbacks = useMemo(() => ({
-    onSpotClick: (spot: Spot) => {
-      // 스팟 위치로 이동하고 줌 레벨 3으로 설정
-      panTo(spot.lat, spot.lng);
-      setTimeout(() => setLevel(3), 300);
-      
-      setSelectedSpotId(spot.id);
-      setIsModalOpen(true);
-    }
-  }), [panTo, setLevel]);
-
   const routeCallbacks = useMemo(() => ({
     onAlert: showAlert
   }), [showAlert]);
 
   const {
     updateMarkers,
-    highlightMarkers,
-    getMarkerByPlaceId
+    highlightMarkers
   } = useMarkerManager(mapInstance);
-
-  const {
-    showSpotDetail
-  } = useOverlayManager(mapInstance, overlayCallbacks);
 
   const {
     routeState,
@@ -149,7 +128,7 @@ const Map: React.FC<MapProps> = React.memo(({
     // 마커 위치로 이동하고 줌 레벨 3으로 설정
     panTo(place.lat, place.lng);
     setTimeout(() => setLevel(3), 300);
-    
+
     setSelectedSpotId(place.id);
     setIsModalOpen(true);
     onPlaceClick?.(place);
@@ -189,7 +168,7 @@ const Map: React.FC<MapProps> = React.memo(({
       await withLoading(async () => {
         const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
         const currentUser = api.auth.getCurrentUser();
-        
+
         const spotData = {
           name: data.name,
           description: data.description,
@@ -217,22 +196,19 @@ const Map: React.FC<MapProps> = React.memo(({
 
   // Initialize map
   useEffect(() => {
-    startRender();
+    // @ts-ignore
     if (mapRef.current && window.kakao?.maps) {
       initializeMap(mapOptions);
       setTimeout(() => loadPopulationData(), 1000);
     }
-    endRender(places.length, populationData.length);
-  }, [initializeMap, mapOptions, loadPopulationData, startRender, endRender, places.length, populationData.length]);
+  }, [initializeMap, mapOptions, loadPopulationData, places.length, populationData.length]);
 
   // Update markers when places change
   useEffect(() => {
     if (mapInstance && places.length > 0) {
-      startRender();
       updateMarkers(places, handleMarkerClick);
-      endRender(places.length, 0);
     }
-  }, [mapInstance, places, updateMarkers, handleMarkerClick, startRender, endRender]);
+  }, [mapInstance, places, updateMarkers, handleMarkerClick]);
 
   // Update population overlays
   useEffect(() => {
@@ -247,7 +223,7 @@ const Map: React.FC<MapProps> = React.memo(({
       // 선택된 스팟 위치로 이동하고 줌 레벨 3으로 설정
       panTo(selectedSpot.lat, selectedSpot.lng);
       setTimeout(() => setLevel(3), 300);
-      
+
       setSelectedSpotId(selectedSpot.id);
       setIsModalOpen(true);
     }
@@ -262,7 +238,7 @@ const Map: React.FC<MapProps> = React.memo(({
         1000
       );
       setNearbyQuietPlaces(nearbyPlaces);
-      
+
       if (nearbyPlaces.length > 0) {
         highlightMarkers(nearbyPlaces.map(p => p.id));
       }
