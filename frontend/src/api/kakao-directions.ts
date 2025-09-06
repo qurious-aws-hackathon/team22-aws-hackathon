@@ -46,16 +46,56 @@ export interface ProcessedRoute {
 export const kakaoDirectionsApi = {
   async getWalkingRoute(start: RoutePoint, end: RoutePoint): Promise<ProcessedRoute> {
     try {
-      console.log('🚶 카카오 지도 SDK 길찾기 사용:', start, '→', end);
+      console.log('🚶 카카오 모빌리티 API 호출:', start, '→', end);
       
-      // 카카오 지도 SDK를 사용한 간단한 길찾기
-      // 실제로는 더 복잡한 로직이 필요하지만, 현재는 시뮬레이션 사용
+      // 실제 카카오 모빌리티 API 호출
+      const response = await axios.post(
+        'https://apis-navi.kakaomobility.com/v1/directions',
+        {
+          origin: {
+            x: start.lng,
+            y: start.lat
+          },
+          destination: {
+            x: end.lng,
+            y: end.lat
+          },
+          priority: 'RECOMMEND',
+          car_fuel: 'GASOLINE',
+          car_hipass: false,
+          alternatives: false,
+          road_details: false
+        },
+        {
+          headers: {
+            'Authorization': `KakaoAK ${KAKAO_REST_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.routes && response.data.routes.length > 0) {
+        const route = response.data.routes[0];
+        const points = this.extractRoutePoints(route);
+        
+        console.log('✅ 실제 카카오 경로 획득:', points.length, '개 지점');
+        
+        return {
+          points,
+          distance: route.summary.distance,
+          duration: route.summary.duration,
+          roads: route.sections?.[0]?.roads || []
+        };
+      }
       
-      // 더 정교한 시뮬레이션 경로 생성
-      const points = this.generateRealisticWalkingPath(start, end);
+      throw new Error('경로를 찾을 수 없습니다');
+
+    } catch (error) {
+      console.warn('카카오 API 실패, 격자 경로 생성:', error);
+      
+      // API 실패 시 격자 도로 패턴으로 폴백
+      const points = this.generateGridBasedPath(start, end);
       const distance = this.calculateTotalDistance(points);
-      
-      console.log('✅ 시뮬레이션 경로 생성 완료:', points.length, '개 지점');
       
       return {
         points,
@@ -67,54 +107,62 @@ export const kakaoDirectionsApi = {
           traffic_state: 1 
         }]
       };
-
-    } catch (error) {
-      console.warn('경로 생성 실패, 기본 경로 사용:', error);
-      
-      // 최종 폴백: 직선 경로
-      return {
-        points: [start, end],
-        distance: calculateDistance(start, end),
-        duration: calculateDistance(start, end) * 12,
-        roads: []
-      };
     }
   },
 
-  // 더 현실적인 보행자 경로 시뮬레이션
-  generateRealisticWalkingPath(start: RoutePoint, end: RoutePoint): RoutePoint[] {
-    const points: RoutePoint[] = [start];
+  // 실제 경로에서 좌표 추출
+  extractRoutePoints(route: any): RoutePoint[] {
+    const points: RoutePoint[] = [];
     
-    const totalDistance = calculateDistance(start, end);
-    const steps = Math.max(8, Math.min(20, Math.floor(totalDistance / 200))); // 200m마다 포인트
-    
-    for (let i = 1; i < steps; i++) {
-      const ratio = i / steps;
-      
-      // 기본 직선 경로
-      let lat = start.lat + (end.lat - start.lat) * ratio;
-      let lng = start.lng + (end.lng - start.lng) * ratio;
-      
-      // 도로를 따라가는 것처럼 곡선 추가
-      const curveIntensity = 0.0005;
-      const curve1 = Math.sin(ratio * Math.PI * 2) * curveIntensity;
-      const curve2 = Math.sin(ratio * Math.PI * 3) * curveIntensity * 0.5;
-      
-      // 격자 도로 패턴 시뮬레이션
-      if (i % 3 === 0) {
-        // 가끔 직각으로 꺾이는 효과
-        const gridOffset = curveIntensity * 2;
-        lat += (Math.random() - 0.5) * gridOffset;
-        lng += (Math.random() - 0.5) * gridOffset;
-      }
-      
-      points.push({
-        lat: lat + curve1,
-        lng: lng + curve2
+    if (route.sections) {
+      route.sections.forEach((section: any) => {
+        if (section.roads) {
+          section.roads.forEach((road: any) => {
+            if (road.vertexes) {
+              // vertexes는 [lng, lat, lng, lat, ...] 형태
+              for (let i = 0; i < road.vertexes.length; i += 2) {
+                points.push({
+                  lng: road.vertexes[i],
+                  lat: road.vertexes[i + 1]
+                });
+              }
+            }
+          });
+        }
       });
     }
     
+    return points;
+  },
+
+  // 격자 도로 패턴 시뮬레이션 (API 실패 시 사용)
+  generateGridBasedPath(start: RoutePoint, end: RoutePoint): RoutePoint[] {
+    const points: RoutePoint[] = [start];
+    
+    const latDiff = end.lat - start.lat;
+    const lngDiff = end.lng - start.lng;
+    
+    // 격자 도로를 따라 이동 (L자 형태)
+    const gridSize = 0.002; // 약 200m 간격
+    
+    let currentLat = start.lat;
+    let currentLng = start.lng;
+    
+    // 먼저 위/아래로 이동
+    while (Math.abs(currentLat - end.lat) > gridSize) {
+      currentLat += latDiff > 0 ? gridSize : -gridSize;
+      points.push({ lat: currentLat, lng: currentLng });
+    }
+    
+    // 그 다음 좌/우로 이동
+    while (Math.abs(currentLng - end.lng) > gridSize) {
+      currentLng += lngDiff > 0 ? gridSize : -gridSize;
+      points.push({ lat: currentLat, lng: currentLng });
+    }
+    
+    // 최종 목적지
     points.push(end);
+    
     return points;
   },
 
