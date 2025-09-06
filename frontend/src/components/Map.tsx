@@ -3,7 +3,7 @@ import { type Spot, api } from '../api';
 import PinRegistrationModal from './PinRegistrationModal';
 import Alert from './Alert';
 import PlacePopulation from './Map/PlacePopulation';
-import { RealtimePopulationData } from '../api/models/population';
+import { RealtimePopulationData } from '../api';
 import { useLoading } from '../contexts/LoadingContext';
 
 interface MapProps {
@@ -360,7 +360,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const deleteBtn = overlayContent.querySelector('#delete-btn');
       const commentBtn = overlayContent.querySelector('#comment-btn');
       const commentInput = overlayContent.querySelector('#comment-input');
-      const nicknameInput = overlayContent.querySelector('#nickname-input');
 
       if (closeBtn) {
         closeBtn.onclick = () => {
@@ -427,7 +426,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
           if (!comment) return;
 
-          try {
             const requestData = {
               spot_id: place.id,
               content: comment,
@@ -435,13 +433,13 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               nickname: currentUser.nickname
             };
 
-            const result = await api.comments.createComment(requestData);
-            (commentInput as HTMLInputElement).value = '';
-            loadComments();
-            alert('댓글이 등록되었습니다.');
-          } catch (error) {
-            alert('댓글 등록에 실패했습니다: ' + (error as Error).message);
-          }
+            api.comments.createComment(requestData)
+                .then(() => {
+                  (commentInput as HTMLInputElement).value = '';
+                  loadComments();
+                }).catch(() => {
+                  setAlert({isOpen: true, type: "error", message: '댓글 등록에 실패했습니다.'});
+            });
         };
 
         commentBtn.onclick = addComment;
@@ -482,17 +480,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       loadComments();
     }, 500);
-  };
-
-  const showInfoWindowForPlace = (place: Spot) => {
-    // 해당 장소의 마커 찾기
-    const markerIndex = markersPlacesRef.current.findIndex(p => p.id === place.id);
-
-    if (markerIndex !== -1 && markersRef.current[markerIndex]) {
-      const targetMarker = markersRef.current[markerIndex];
-      // InfoWindow 표시
-      showInfoWindow(targetMarker, place);
-    }
   };
 
   const moveToSpot = (spot: Spot) => {
