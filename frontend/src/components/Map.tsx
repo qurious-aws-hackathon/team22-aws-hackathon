@@ -847,7 +847,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#startGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <path d="M19 16l4-4 4 4-4 4z" fill="#2E7D32"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">출발지</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">START</text>
           </svg>
         `;
         break;
@@ -867,7 +867,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#endGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <rect x="20" y="12" width="8" height="8" fill="#C62828"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">도착지</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">END</text>
           </svg>
         `;
         break;
@@ -888,7 +888,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#waypointGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <text x="24" y="21" text-anchor="middle" font-size="12" fill="#E65100" font-weight="bold">${waypointNumber}</text>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#E65100" font-weight="bold">경유지</text>
+            <text x="24" y="52" text-anchor="middle" font-size="9" fill="#E65100" font-weight="bold">STOP</text>
           </svg>
         `;
         break;
