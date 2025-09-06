@@ -26,6 +26,8 @@ interface ContextMenu {
 }
 
 const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUpdate }) => {
+  console.log('🗺️ Map 컴포넌트 렌더링 - places 수:', places?.length || 0);
+  
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -922,11 +924,24 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       }));
       
       // 경로 주변 조용한 장소 찾기
+      console.log('📍 경로 데이터 확인:', {
+        points: routeData.points?.length || 0,
+        places: places?.length || 0,
+        searchRadius
+      });
+      
       const nearbyPlaces = findNearbyQuietPlaces(routeData.points, places, searchRadius);
       setNearbyQuietPlaces(nearbyPlaces);
       
+      console.log('🎯 주변 장소 설정 완료:', nearbyPlaces.length);
+      
       // 마커 강조 표시 (애니메이션 포함)
-      highlightNearbyPlaces(nearbyPlaces);
+      if (nearbyPlaces.length > 0) {
+        console.log('🎬 애니메이션 시작');
+        highlightNearbyPlaces(nearbyPlaces);
+      } else {
+        console.log('❌ 주변 장소가 없어 애니메이션 생략');
+      }
       
       // 사용자에게 경로 정보 알림
       const nearbyCount = nearbyPlaces.length;
@@ -965,22 +980,42 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   // 경로 주변 조용한 장소 찾기
   const findNearbyQuietPlaces = (routePoints: LatLng[], allPlaces: Spot[], maxDistance: number): Spot[] => {
+    console.log('🔍 경로 주변 장소 찾기 시작:');
+    console.log('- 경로 포인트 수:', routePoints?.length || 0);
+    console.log('- 전체 장소 수:', allPlaces?.length || 0);
+    console.log('- 최대 거리:', maxDistance, 'm');
+    
+    if (!routePoints || !allPlaces || routePoints.length === 0 || allPlaces.length === 0) {
+      console.warn('❌ 경로 포인트 또는 장소 데이터가 없습니다');
+      return [];
+    }
+    
     const nearbyPlaces: Spot[] = [];
     
-    allPlaces.forEach(place => {
+    allPlaces.forEach((place, index) => {
       const placePoint = { lat: place.latitude, lng: place.longitude };
       
-      // 경로의 각 점과 장소 사이의 최단 거리 계산
-      const minDistance = Math.min(...routePoints.map(routePoint => 
-        calculateDistance(routePoint, placePoint)
-      ));
+      console.log(`장소 ${index + 1}: ${place.name} (${placePoint.lat}, ${placePoint.lng})`);
+      
+      // 경로의 각 점과 장소 사이의 거리 계산
+      const distances = routePoints.map(routePoint => {
+        const distance = calculateDistance(routePoint, placePoint);
+        return distance;
+      });
+      
+      const minDistance = Math.min(...distances);
+      console.log(`- 최단 거리: ${(minDistance / 1000).toFixed(2)}km`);
       
       if (minDistance <= maxDistance) {
         nearbyPlaces.push(place);
+        console.log(`✅ 포함됨: ${place.name}`);
+      } else {
+        console.log(`❌ 제외됨: ${place.name} (거리: ${(minDistance / 1000).toFixed(2)}km > ${(maxDistance / 1000).toFixed(1)}km)`);
       }
     });
     
     console.log(`🏞️ 경로 주변 ${maxDistance/1000}km 이내 조용한 장소: ${nearbyPlaces.length}개`);
+    console.log('찾은 장소들:', nearbyPlaces.map(p => p.name));
     return nearbyPlaces;
   };
 
