@@ -1,419 +1,72 @@
-# 쉿플레이스 프론트엔드 개발 가이드
+# 🤫 쉿플레이스 (ShitPlace)
 
-## 🎯 프론트엔드 아키텍처
+> **조용하고 평화로운 장소를 찾아주는 스마트 위치 추천 서비스**
 
-```mermaid
-graph TB
-    subgraph "React Application"
-        A[App.js] --> B[Router]
-        B --> C[Map Page]
-        B --> D[Search Page]
-        B --> E[Place Detail Page]
-    end
-    
-    subgraph "Components"
-        F[MapComponent] --> G[Kakao Map API]
-        H[SearchComponent] --> I[Filter Logic]
-        J[PlaceCard] --> K[Noise/Crowd Display]
-    end
-    
-    subgraph "State Management"
-        L[Redux Store] --> M[Places Slice]
-        L --> N[UI Slice]
-        L --> O[User Slice]
-    end
-    
-    subgraph "API Layer"
-        P[API Client] --> Q[Backend API]
-        P --> R[External APIs]
-    end
-    
-    C --> F
-    D --> H
-    E --> J
-    F --> P
-    H --> P
-    J --> P
-    A --> L
-```
+## 🎯 프로젝트 소개
+
+현대인들은 끊임없는 소음과 인파 속에서 살아가며, 진정한 휴식과 집중을 위한 조용한 공간을 찾기 어려워합니다. **쉿플레이스**는 실시간 소음 데이터와 인구 밀도 정보를 활용하여 사용자에게 최적의 조용한 장소를 추천하는 혁신적인 위치 기반 서비스입니다.
+
+## 💡 해결하는 문제
+
+### 🔊 도시의 소음 공해
+- 카페에서 공부하려 했는데 너무 시끄러운 경험
+- 휴식을 위해 찾은 공원이 공사 소음으로 가득한 상황
+- 중요한 통화나 회의를 위한 조용한 공간 부족
+
+### 👥 인파로 인한 스트레스
+- 붐비는 장소에서의 불편함
+- 개인적인 시간을 보내기 어려운 환경
+- 집중이 필요한 업무를 위한 공간 부족
+
+## ✨ 핵심 기능
+
+### 🗺️ 실시간 조용한 장소 지도
+- **실시간 소음 레벨 측정**: 각 장소의 현재 소음 수준을 실시간으로 표시
+- **인구 밀도 정보**: 현재 장소의 혼잡도를 시각적으로 제공
+- **조용함 평점 시스템**: 사용자 리뷰 기반의 조용함 점수
+
+### 🤖 AI 기반 맞춤 추천
+- **개인화된 장소 추천**: 사용자의 선호도와 현재 위치를 고려한 스마트 추천
+- **상황별 최적 장소**: 공부, 휴식, 통화 등 목적에 맞는 장소 제안
+- **실시간 챗봇 상담**: 자연어로 원하는 조건을 말하면 최적의 장소 추천
+
+### 🛣️ 조용한 경로 안내
+- **소음 회피 경로**: 시끄러운 도로와 공사 구간을 피하는 경로 제공
+- **혼잡 회피 옵션**: 인파가 적은 길로 안내하는 스마트 내비게이션
+- **카카오맵 연동**: 친숙한 지도 서비스와의 완벽한 통합
+
+### 📱 커뮤니티 기능
+- **장소 리뷰 및 평점**: 실제 방문자들의 생생한 후기
+- **사진 공유**: 장소의 분위기를 미리 확인할 수 있는 이미지
+- **실시간 업데이트**: 사용자들이 직접 업데이트하는 최신 정보
+
+## 🎯 비즈니스 가치
+
+### 📈 시장 기회
+- **도시 거주자 증가**: 전 세계 인구의 68%가 2050년까지 도시에 거주 예정
+- **웰빙 트렌드**: 정신 건강과 삶의 질에 대한 관심 증가
+- **원격 근무 확산**: 집중할 수 있는 공간에 대한 수요 급증
+
+### 💰 수익 모델
+- **프리미엄 구독**: 고급 필터링, 무제한 추천, 광고 제거
+- **비즈니스 파트너십**: 조용한 카페, 도서관, 코워킹 스페이스와의 제휴
+- **데이터 인사이트**: 도시 계획자와 부동산 개발업체를 위한 소음 데이터 제공
+
+### 🌍 사회적 가치
+- **도시 소음 감소**: 소음 핫스팟 식별을 통한 도시 환경 개선
+- **정신 건강 증진**: 스트레스 감소와 집중력 향상에 기여
+- **지역 경제 활성화**: 조용한 로컬 비즈니스 발굴 및 홍보
 
 ## 🛠️ 기술 스택
 
-### Core
-- **React 18**: 함수형 컴포넌트 + Hooks
-- **TypeScript**: 타입 안정성
-- **Vite**: 빠른 개발 서버 및 빌드
-- **React Router v6**: 클라이언트 사이드 라우팅
+- **Frontend**: React 18 + TypeScript + Vite
+- **지도 서비스**: 카카오맵 API
+- **실시간 데이터**: AWS 기반 백엔드
+- **AI/ML**: 개인화 추천 알고리즘
+- **데이터 분석**: 소음 레벨 및 인구 밀도 분석
 
-### UI/UX
-- **Material-UI (MUI)**: 컴포넌트 라이브러리
-- **Emotion**: CSS-in-JS 스타일링
-- **React Spring**: 애니메이션
-- **Framer Motion**: 고급 애니메이션 (선택사항)
+## 🚀 시작하기
 
-### 상태 관리
-- **Redux Toolkit**: 전역 상태 관리
-- **RTK Query**: API 상태 관리 및 캐싱
-- **React Hook Form**: 폼 상태 관리
-
-### 지도 & 위치
-- **Kakao Map API**: 지도 서비스
-- **Geolocation API**: 현재 위치 획득
-- **GeoHash**: 위치 기반 검색 최적화
-
-## ⏰ 12시간 개발 타임라인
-
-### 0-2시간: 프로젝트 초기 설정
-```mermaid
-gantt
-    title 프론트엔드 초기 설정
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section 환경설정
-    Vite React 프로젝트 생성     :done, setup1, 00:00, 00:30
-    TypeScript 설정            :done, setup2, 00:30, 01:00
-    라이브러리 설치             :done, setup3, 01:00, 01:30
-    기본 라우팅 설정            :done, setup4, 01:30, 02:00
-```
-
-**작업 내용:**
-- [ ] Vite + React + TypeScript 프로젝트 생성
-- [ ] 필수 라이브러리 설치 (MUI, Redux Toolkit, React Router)
-- [ ] 프로젝트 구조 설정 (components, pages, store, utils)
-- [ ] 기본 라우팅 설정 (/, /search, /place/:id)
-- [ ] 환경 변수 설정 (.env 파일)
-
-**핵심 파일:**
-```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── Map/
-│   │   ├── Search/
-│   │   └── UI/
-│   ├── pages/
-│   │   ├── HomePage.tsx
-│   │   ├── SearchPage.tsx
-│   │   └── PlaceDetailPage.tsx
-│   ├── store/
-│   │   ├── index.ts
-│   │   └── slices/
-│   ├── utils/
-│   └── App.tsx
-├── package.json
-└── vite.config.ts
-```
-
-### 2-4시간: 지도 컴포넌트 + 기본 UI
-```mermaid
-gantt
-    title 지도 및 기본 UI 개발
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section 지도 개발
-    Kakao Map 연동             :map1, 02:00, 02:45
-    마커 시스템 구현            :map2, 02:45, 03:30
-    
-    section UI 개발
-    기본 레이아웃               :ui1, 03:30, 04:00
-```
-
-**작업 내용:**
-- [ ] Kakao Map API 연동 및 기본 지도 표시
-- [ ] 현재 위치 기반 지도 중심점 설정
-- [ ] 장소 마커 시스템 구현 (소음/혼잡도 색상 구분)
-- [ ] 기본 레이아웃 컴포넌트 (Header, Sidebar, Footer)
-- [ ] 반응형 디자인 기본 설정
-
-**지도 컴포넌트 구조:**
-```typescript
-interface MapComponentProps {
-  places: Place[];
-  center: { lat: number; lng: number };
-  onMarkerClick: (place: Place) => void;
-}
-
-interface Place {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  noiseScore: number;
-  crowdScore: number;
-  totalScore: number;
-}
-```
-
-### 4-6시간: 검색/필터 기능 구현
-```mermaid
-gantt
-    title 검색 및 필터 시스템
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section 검색 기능
-    위치 기반 검색              :search1, 04:00, 04:30
-    키워드 검색                :search2, 04:30, 05:00
-    
-    section 필터 기능
-    소음도/혼잡도 필터          :filter1, 05:00, 05:30
-    카테고리 필터              :filter2, 05:30, 06:00
-```
-
-**작업 내용:**
-- [ ] 위치 기반 검색 (현재 위치 또는 지정 위치 중심)
-- [ ] 키워드 검색 (장소명, 주소)
-- [ ] 소음도/혼잡도 범위 필터 (슬라이더)
-- [ ] 장소 카테고리 필터 (공원, 카페, 도서관 등)
-- [ ] 검색 결과 정렬 (거리순, 점수순, 인기순)
-
-**검색 컴포넌트:**
-```typescript
-interface SearchFilters {
-  location: { lat: number; lng: number; radius: number };
-  noiseRange: [number, number];
-  crowdRange: [number, number];
-  categories: string[];
-  sortBy: 'distance' | 'score' | 'popularity';
-}
-
-const SearchComponent: React.FC = () => {
-  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
-  const [results, setResults] = useState<Place[]>([]);
-  
-  // 검색 로직
-  const handleSearch = async () => {
-    const response = await api.searchPlaces(filters);
-    setResults(response.data);
-  };
-};
-```
-
-### 6-8시간: 실시간 데이터 연동
-```mermaid
-gantt
-    title 실시간 데이터 연동
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section API 연동
-    Lambda API 클라이언트       :api1, 06:00, 06:30
-    실시간 데이터 폴링          :api2, 06:30, 07:00
-    
-    section 상태 관리
-    Redux 스토어 설정          :state1, 07:00, 07:30
-    캐싱 전략 구현             :state2, 07:30, 08:00
-```
-
-**작업 내용:**
-- [ ] Axios 기반 API 클라이언트 구현 (Lambda API Gateway 연동)
-- [ ] RTK Query를 통한 API 상태 관리
-- [ ] 실시간 데이터 폴링 (30초 간격)
-- [ ] WebSocket 연결 (실시간 업데이트, 선택사항)
-- [ ] 오프라인 상태 처리 및 에러 핸들링
-
-**API 클라이언트:**
-```typescript
-// RTK Query API 정의 (Lambda API Gateway 연동)
-export const placesApi = createApi({
-  reducerPath: 'placesApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: process.env.VITE_API_BASE_URL, // API Gateway URL
-    prepareHeaders: (headers) => {
-      // API 키 또는 Cognito 토큰 추가
-      headers.set('x-api-key', process.env.VITE_API_KEY);
-      return headers;
-    },
-  }),
-  tagTypes: ['Place', 'NoiseData', 'CrowdData'],
-  endpoints: (builder) => ({
-    getQuietPlaces: builder.query<Place[], SearchFilters>({
-      query: (filters) => ({
-        url: '/api/places/quiet',
-        params: filters,
-      }),
-      providesTags: ['Place'],
-    }),
-    getCurrentStatus: builder.query<PlaceStatus, string>({
-      query: (placeId) => `/api/places/${placeId}/current-status`,
-      providesTags: ['NoiseData', 'CrowdData'],
-    }),
-  }),
-});
-```
-
-### 8-10시간: UI/UX 개선
-```mermaid
-gantt
-    title UI/UX 개선
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section 디자인 개선
-    컴포넌트 스타일링           :design1, 08:00, 08:30
-    애니메이션 추가            :design2, 08:30, 09:00
-    
-    section 사용성 개선
-    로딩 상태 처리             :ux1, 09:00, 09:30
-    에러 처리 UI              :ux2, 09:30, 10:00
-```
-
-**작업 내용:**
-- [ ] Material-UI 테마 커스터마이징
-- [ ] 로딩 스피너 및 스켈레톤 UI
-- [ ] 에러 바운더리 및 에러 메시지 UI
-- [ ] 토스트 알림 시스템
-- [ ] 부드러운 애니메이션 효과 (페이지 전환, 마커 애니메이션)
-
-**테마 설정:**
-```typescript
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#2E7D32', // 조용함을 상징하는 녹색
-    },
-    secondary: {
-      main: '#FF6B6B', // 소음을 상징하는 빨간색
-    },
-    background: {
-      default: '#F5F5F5',
-    },
-  },
-  typography: {
-    fontFamily: '"Noto Sans KR", "Roboto", sans-serif',
-  },
-});
-```
-
-### 10-12시간: 배포 및 최적화
-```mermaid
-gantt
-    title 배포 및 최적화
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section 최적화
-    번들 크기 최적화            :opt1, 10:00, 10:30
-    성능 최적화               :opt2, 10:30, 11:00
-    
-    section 배포
-    S3 + CloudFront 배포      :deploy1, 11:00, 11:30
-    도메인 연결 및 테스트       :deploy2, 11:30, 12:00
-```
-
-**작업 내용:**
-- [ ] 코드 스플리팅 및 lazy loading
-- [ ] 이미지 최적화 및 압축
-- [ ] PWA 설정 (Service Worker, 매니페스트)
-- [ ] S3 정적 웹사이트 호스팅 설정
-- [ ] CloudFront CDN 배포
-- [ ] 도메인 연결 및 HTTPS 설정
-
-## 📱 주요 컴포넌트
-
-### MapComponent
-```typescript
-interface MapComponentProps {
-  places: Place[];
-  center: { lat: number; lng: number };
-  zoom?: number;
-  onMarkerClick?: (place: Place) => void;
-  onMapClick?: (coords: { lat: number; lng: number }) => void;
-}
-
-const MapComponent: React.FC<MapComponentProps> = ({
-  places,
-  center,
-  zoom = 15,
-  onMarkerClick,
-  onMapClick,
-}) => {
-  // Kakao Map 초기화 및 마커 렌더링 로직
-};
-```
-
-### PlaceCard
-```typescript
-interface PlaceCardProps {
-  place: Place;
-  onClick?: () => void;
-  showDistance?: boolean;
-}
-
-const PlaceCard: React.FC<PlaceCardProps> = ({ place, onClick, showDistance }) => {
-  return (
-    <Card onClick={onClick}>
-      <CardContent>
-        <Typography variant="h6">{place.name}</Typography>
-        <Box display="flex" gap={1}>
-          <Chip 
-            label={`소음도 ${place.noiseScore}/10`}
-            color={place.noiseScore <= 3 ? 'success' : 'warning'}
-          />
-          <Chip 
-            label={`혼잡도 ${place.crowdScore}/10`}
-            color={place.crowdScore <= 3 ? 'success' : 'warning'}
-          />
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-```
-
-### SearchFilters
-```typescript
-const SearchFilters: React.FC = () => {
-  const [noiseRange, setNoiseRange] = useState<[number, number]>([1, 10]);
-  const [crowdRange, setCrowdRange] = useState<[number, number]>([1, 10]);
-  
-  return (
-    <Box>
-      <Typography>소음도 범위</Typography>
-      <Slider
-        value={noiseRange}
-        onChange={(_, value) => setNoiseRange(value as [number, number])}
-        valueLabelDisplay="auto"
-        min={1}
-        max={10}
-      />
-      
-      <Typography>혼잡도 범위</Typography>
-      <Slider
-        value={crowdRange}
-        onChange={(_, value) => setCrowdRange(value as [number, number])}
-        valueLabelDisplay="auto"
-        min={1}
-        max={10}
-      />
-    </Box>
-  );
-};
-```
-
-## 🔧 개발 환경 설정
-
-### 필수 도구
-```bash
-# Node.js 18+ 설치 확인
-node --version
-
-# 패키지 매니저 (npm 또는 yarn)
-npm --version
-```
-
-### 환경 변수
-```env
-# .env
-VITE_API_BASE_URL=https://your-api-id.execute-api.ap-northeast-2.amazonaws.com/dev
-VITE_API_KEY=your_api_gateway_key
-VITE_KAKAO_MAP_API_KEY=your_kakao_api_key
-VITE_APP_TITLE=쉿플레이스
-```
-
-### 개발 서버 실행
 ```bash
 # 의존성 설치
 npm install
@@ -421,91 +74,17 @@ npm install
 # 개발 서버 실행
 npm run dev
 
-# 빌드
+# 프로덕션 빌드
 npm run build
-
-# 프리뷰
-npm run preview
 ```
 
-## 📊 상태 관리 구조
+## 🌟 차별화 포인트
 
-```typescript
-// store/index.ts
-export const store = configureStore({
-  reducer: {
-    places: placesSlice.reducer,
-    ui: uiSlice.reducer,
-    user: userSlice.reducer,
-    placesApi: placesApi.reducer,
-  },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(placesApi.middleware),
-});
+1. **실시간 데이터**: 정적인 정보가 아닌 실시간 소음과 인구 밀도 데이터
+2. **AI 개인화**: 사용자의 패턴을 학습하여 점점 더 정확한 추천 제공
+3. **커뮤니티 검증**: 실제 사용자들의 검증된 정보로 신뢰성 확보
+4. **통합 경험**: 장소 찾기부터 경로 안내까지 원스톱 서비스
 
-// store/slices/placesSlice.ts
-interface PlacesState {
-  currentLocation: { lat: number; lng: number } | null;
-  selectedPlace: Place | null;
-  searchFilters: SearchFilters;
-  favorites: string[];
-}
-```
+---
 
-## 🚀 빠른 시작
-
-```bash
-# 1. 프로젝트 생성
-npm create vite@latest frontend -- --template react-ts
-cd frontend
-
-# 2. 의존성 설치
-npm install @mui/material @emotion/react @emotion/styled
-npm install @reduxjs/toolkit react-redux
-npm install react-router-dom
-npm install axios
-
-# 3. 개발 서버 실행
-npm run dev
-
-# 4. 브라우저에서 확인
-# http://localhost:5173
-```
-
-## 🔍 성능 최적화
-
-### 코드 스플리팅
-```typescript
-// 페이지별 lazy loading
-const HomePage = lazy(() => import('./pages/HomePage'));
-const SearchPage = lazy(() => import('./pages/SearchPage'));
-const PlaceDetailPage = lazy(() => import('./pages/PlaceDetailPage'));
-```
-
-### 메모이제이션
-```typescript
-// 비싼 계산 결과 캐싱
-const sortedPlaces = useMemo(() => {
-  return places.sort((a, b) => a.totalScore - b.totalScore);
-}, [places]);
-
-// 컴포넌트 리렌더링 최적화
-const PlaceCard = memo<PlaceCardProps>(({ place, onClick }) => {
-  // 컴포넌트 로직
-});
-```
-
-### 이미지 최적화
-```typescript
-// 이미지 lazy loading
-const LazyImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      style={{ width: '100%', height: 'auto' }}
-    />
-  );
-};
-```
+**쉿플레이스**와 함께 소음 없는 평화로운 일상을 만들어보세요. 🤫✨
