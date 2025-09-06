@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
+import { type RouteState, type LatLng } from '../api/models/route';
 import PinRegistrationModal from './PinRegistrationModal';
 import PlaceDetailPanel from './PlaceDetailPanel';
 import Alert from './Alert';
@@ -31,6 +32,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const infoWindowRef = useRef<any>(null);
   const crowdPolygonsRef = useRef<any[]>([]);
   const noiseCirclesRef = useRef<any[]>([]);
+  const routeMarkersRef = useRef<any[]>([]);
+  const routePolylineRef = useRef<any>(null);
+  const startPointRef = useRef<LatLng | null>(null);
+  const endPointRef = useRef<LatLng | null>(null);
+  const isRouteModeRef = useRef<boolean>(false);
   const [isLocating, setIsLocating] = useState(false);
   const [populationData, setPopulationData] = useState<RealtimePopulationData[]>([]);
   const [showCongestion, setShowCongestion] = useState(true);
@@ -62,6 +68,14 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const { withLoading } = useLoading();
+  
+  // 경로 상태 관리 (UI용)
+  const [routeState, setRouteState] = useState<RouteState>({
+    startPoint: null,
+    endPoint: null,
+    isRouteMode: false,
+    recommendedRoute: null
+  });
 
   useEffect(() => {
     initializeMap();
