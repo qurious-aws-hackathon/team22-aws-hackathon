@@ -149,13 +149,20 @@
   background: white;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(0,0,0,0.05);
+  transform: translateY(0);
 }
 
 .floating-place-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  background: rgba(255, 255, 255, 1);
+}
+
+.floating-place-item:active {
+  transform: translateY(-1px) scale(0.98);
+  transition: all 0.1s ease-out;
 }
 
 .place-info {

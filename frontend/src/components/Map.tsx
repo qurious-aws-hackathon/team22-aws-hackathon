@@ -265,18 +265,39 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     // 지도 이동 (팝업이 중앙에 오도록 조정)
     const moveLatLng = new (window as any).kakao.maps.LatLng(place.lat, place.lng);
 
-    // 팝업이 화면 중앙에 오도록 마커보다 아래쪽으로 지도 중심 이동
-    const projection = mapInstance.current.getProjection();
-    const point = projection.pointFromCoords(moveLatLng);
+    // 현재 줌 레벨에 따라 오프셋 조정
+    const currentLevel = mapInstance.current.getLevel();
+    const targetLevel = 3;
+    
+    // 먼저 적절한 줌 레벨로 이동
+    if (currentLevel > 5) {
+      // 줌 아웃 상태에서는 먼저 줌인 후 위치 조정
+      mapInstance.current.setLevel(targetLevel);
+      setTimeout(() => {
+        // 줌 변경 후 정확한 위치로 이동
+        const projection = mapInstance.current.getProjection();
+        const point = projection.pointFromCoords(moveLatLng);
+        const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 150);
+        const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+        mapInstance.current.panTo(adjustedLatLng);
+      }, 200);
+    } else {
+      // 일반 줌 레벨에서는 기존 로직 사용
+      const projection = mapInstance.current.getProjection();
+      const point = projection.pointFromCoords(moveLatLng);
+      const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 150);
+      const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+      mapInstance.current.panTo(adjustedLatLng);
+      
+      setTimeout(() => {
+        if (mapInstance.current.getLevel() !== targetLevel) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    }
 
-    // 팝업 높이만큼 아래쪽으로 이동 (약 200px)
-    const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 200);
-    const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
-
-    mapInstance.current.setCenter(adjustedLatLng);
-    mapInstance.current.setLevel(3);
-
-    // 오버레이 생성
+    // 오버레이 생성 (줌 레벨에 따라 타이밍 조정)
+    const overlayDelay = currentLevel > 5 ? 800 : 500;
     setTimeout(() => {
       // 다시 한번 중복 체크
       if (infoWindowRef.current) {
@@ -290,7 +311,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const currentUser = api.auth.getCurrentUser();
 
       overlayContent.innerHTML = `
-        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; word-wrap: break-word; overflow-wrap: break-word;">
+        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; word-wrap: break-word; overflow-wrap: break-word; opacity: 0; transform: translateY(10px); transition: all 0.3s ease-out;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h3 style="margin: 0; font-size: 18px; font-weight: 600; word-wrap: break-word; overflow-wrap: break-word;">장소 상세</h3>
             <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666; flex-shrink: 0;">✕</button>
@@ -305,7 +326,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           
           ${place.image_url ? `
             <div style="margin-bottom: 16px;">
-              <img src="${place.image_url}" alt="${place.name}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" />
+              <img src="${place.image_url}" alt="${place.name}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" loading="eager" />
             </div>
           ` : ''}
           
@@ -382,6 +403,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       overlay.setMap(mapInstance.current);
       overlay.placeId = place.id; // 장소 ID 저장
       infoWindowRef.current = overlay;
+
+      // 팝업 등장 애니메이션 트리거
+      setTimeout(() => {
+        const popupElement = overlayContent.querySelector('div');
+        if (popupElement) {
+          popupElement.style.opacity = '1';
+          popupElement.style.transform = 'translateY(0)';
+        }
+      }, 50);
 
       // 이벤트 리스너 등록
       const closeBtn = overlayContent.querySelector('#close-btn');
@@ -509,16 +539,33 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       };
 
       loadComments();
-    }, 500);
+    }, overlayDelay);
   };
 
   const moveToSpot = (spot: Spot) => {
     if (!mapInstance.current) return;
 
     const moveLatLng = new (window as any).kakao.maps.LatLng(spot.lat, spot.lng);
+    const currentLevel = mapInstance.current.getLevel();
+    const targetLevel = 3;
 
-    mapInstance.current.setCenter(moveLatLng);
-    mapInstance.current.setLevel(3);
+    // 줌 아웃 상태에서는 먼저 중심으로 이동 후 줌인
+    if (currentLevel > 5) {
+      mapInstance.current.panTo(moveLatLng);
+      setTimeout(() => {
+        if (mapInstance.current) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    } else {
+      // 일반 줌 레벨에서는 부드러운 이동
+      mapInstance.current.panTo(moveLatLng);
+      setTimeout(() => {
+        if (mapInstance.current && mapInstance.current.getLevel() !== targetLevel) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    }
 
     setTimeout(() => {
       if (mapInstance.current) {
@@ -733,8 +780,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         const moveLatLng = new (window as any).kakao.maps.LatLng(latitude, longitude);
 
         if (mapInstance.current) {
-          mapInstance.current.setCenter(moveLatLng);
-          mapInstance.current.setLevel(3);
+          // 부드러운 애니메이션으로 이동
+          mapInstance.current.panTo(moveLatLng);
+          
+          // 줌 레벨도 부드럽게 변경
+          setTimeout(() => {
+            if (mapInstance.current && mapInstance.current.getLevel() !== 3) {
+              mapInstance.current.setLevel(3);
+            }
+          }, 300);
 
           addCurrentLocationMarker(latitude, longitude);
         }

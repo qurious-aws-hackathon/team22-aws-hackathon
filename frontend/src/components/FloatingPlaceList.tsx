@@ -112,7 +112,19 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           <div 
             key={place.id} 
             className="floating-place-item"
-            onClick={() => onPlaceClick(place)}
+            onClick={() => {
+              // 클릭 애니메이션 효과
+              const element = document.querySelector(`[data-place-id="${place.id}"]`) as HTMLElement;
+              if (element) {
+                element.style.transform = 'scale(0.95)';
+                element.style.transition = 'transform 0.1s ease-out';
+                setTimeout(() => {
+                  element.style.transform = 'scale(1)';
+                }, 100);
+              }
+              onPlaceClick(place);
+            }}
+            data-place-id={place.id}
           >
             <div className="place-info">
               <div className="place-name">{place.name}</div>
