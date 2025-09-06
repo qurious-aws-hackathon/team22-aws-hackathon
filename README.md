@@ -29,6 +29,8 @@
 - **좋아요/싫어요**: 장소에 대한 평가 시스템
 - **댓글 시스템**: 실시간 후기 및 팁 공유
 
+![데모 영상](https://github.com/user-attachments/assets/97d006d9-8257-4158-8121-7949ca5c8bcb)
+
 ### 3. AI 추천 시스템
 - **Amazon Bedrock 연동**: Claude 3 Haiku 모델 활용
 - **개인화 추천**: 사용자 선호도 및 위치 기반 맞춤 추천
