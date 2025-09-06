@@ -1175,137 +1175,77 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  // 마커 애니메이션 효과 - 고퀄리티 펄스 효과
+  // 마커 애니메이션 효과 - 통통 튀는 효과
   const animateMarker = (marker: any, index: number) => {
-    let pulseCount = 0;
-    const maxPulses = 8; // 4번 펄스
-    let isExpanding = true;
+    const originalPlace = markersPlacesRef.current[index];
+    if (!originalPlace) return;
+    
+    // 기존 마커 이미지 가져오기
+    const originalIcon = createMarkerIcon(originalPlace.category || '기타');
+    
+    let bounceCount = 0;
+    const maxBounces = 6; // 3번 통통 튀기
     let scale = 1.0;
+    let isBouncing = false;
     
     const animate = () => {
-      if (pulseCount >= maxPulses) {
-        // 애니메이션 완료 후 최종 강조 마커로 설정
-        setFinalHighlightMarker(marker);
+      if (bounceCount >= maxBounces) {
+        // 애니메이션 완료 후 기존 크기로 복원하되 약간 강조
+        const finalIcon = createMarkerIcon(originalPlace.category || '기타');
+        marker.setImage(finalIcon);
         return;
       }
       
-      if (isExpanding) {
-        scale += 0.15;
-        if (scale >= 1.8) {
-          isExpanding = false;
-        }
+      if (!isBouncing) {
+        // 위로 튀어오르기
+        scale = 1.3;
+        isBouncing = true;
       } else {
-        scale -= 0.15;
-        if (scale <= 1.0) {
-          isExpanding = true;
-          pulseCount++;
-        }
+        // 아래로 내려오기
+        scale = 1.0;
+        isBouncing = false;
+        bounceCount++;
       }
       
-      // 고퀄리티 펄스 마커 생성
-      const intensity = (scale - 1) / 0.8; // 0~1 사이 값
-      const glowSize = Math.round(50 * scale);
-      const coreSize = 32;
+      // 기존 디자인을 유지하면서 크기만 변경
+      const categoryConfig = {
+        '카페': { emoji: '☕', color: '#FF6B9D' },
+        '도서관': { emoji: '📚', color: '#4FC3F7' },
+        '공원': { emoji: '🌳', color: '#66BB6A' },
+        '박물관': { emoji: '🏛️', color: '#FFB74D' },
+        '갤러리': { emoji: '🎨', color: '#BA68C8' },
+        '기타': { emoji: '📍', color: '#78909C' }
+      };
       
-      const animatedImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="${glowSize}" height="${glowSize}" viewBox="0 0 ${glowSize} ${glowSize}">
+      const config = categoryConfig[originalPlace.category as keyof typeof categoryConfig] || categoryConfig['기타'];
+      const size = Math.round(60 * scale);
+      const height = Math.round(75 * scale);
+      
+      const bounceSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${height}" viewBox="0 0 ${size} ${height}">
           <defs>
-            <radialGradient id="pulseGradient${index}" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:${0.9 - intensity * 0.3}" />
-              <stop offset="60%" style="stop-color:#66BB6A;stop-opacity:${0.7 - intensity * 0.4}" />
-              <stop offset="100%" style="stop-color:#81C784;stop-opacity:${0.3 - intensity * 0.3}" />
-            </radialGradient>
-            <filter id="glow${index}" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="${2 + intensity * 3}" result="coloredBlur"/>
-              <feMerge> 
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
+            <linearGradient id="grad${index}" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:${config.color};stop-opacity:0.9" />
+              <stop offset="100%" style="stop-color:${config.color};stop-opacity:0.7" />
+            </linearGradient>
           </defs>
-          
-          <!-- 외부 펄스 링 -->
-          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${glowSize/2 - 5}" 
-                  fill="url(#pulseGradient${index})" 
-                  opacity="${0.6 - intensity * 0.4}"/>
-          
-          <!-- 중간 링 -->
-          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${coreSize/2 + 8}" 
-                  fill="none" 
-                  stroke="#4CAF50" 
-                  stroke-width="${2 + intensity}" 
-                  opacity="${0.8 - intensity * 0.3}"/>
-          
-          <!-- 코어 마커 -->
-          <circle cx="${glowSize/2}" cy="${glowSize/2}" r="${coreSize/2}" 
-                  fill="#2E7D32" 
-                  stroke="white" 
-                  stroke-width="3" 
-                  filter="url(#glow${index})"/>
-          
-          <!-- 중앙 아이콘 -->
-          <text x="${glowSize/2}" y="${glowSize/2 + 4}" 
-                text-anchor="middle" 
-                font-size="16" 
-                fill="white" 
-                font-weight="bold">🤫</text>
+          <ellipse cx="${size/2}" cy="${height-8}" rx="${size/2-5}" ry="8" fill="rgba(0,0,0,0.2)"/>
+          <circle cx="${size/2}" cy="${size/2}" r="${size/2-5}" fill="url(#grad${index})" stroke="white" stroke-width="3"/>
+          <text x="${size/2}" y="${size/2+8}" text-anchor="middle" font-size="${size/3}" fill="white">${config.emoji}</text>
         </svg>
-      `);
+      `;
       
-      const imageSize = new (window as any).kakao.maps.Size(glowSize, glowSize);
-      const animatedImage = new (window as any).kakao.maps.MarkerImage(animatedImageSrc, imageSize);
-      marker.setImage(animatedImage);
+      const bounceImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(bounceSvg);
+      const imageSize = new (window as any).kakao.maps.Size(size, height);
+      const bounceImage = new (window as any).kakao.maps.MarkerImage(bounceImageSrc, imageSize);
       
-      setTimeout(animate, 150); // 150ms 간격으로 애니메이션
+      marker.setImage(bounceImage);
+      
+      setTimeout(animate, isBouncing ? 200 : 150); // 위로 갈 때는 조금 더 빠르게
     };
     
     // 애니메이션 시작 전 약간의 지연 (순차적 효과)
     setTimeout(animate, index * 100);
-  };
-
-  // 최종 강조 마커 설정 - 고퀄리티 디자인
-  const setFinalHighlightMarker = (marker: any) => {
-    const highlightImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
-        <defs>
-          <radialGradient id="finalGradient" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
-            <stop offset="70%" style="stop-color:#4CAF50;stop-opacity:0.8" />
-            <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:0.6" />
-          </radialGradient>
-          <filter id="finalGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge> 
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        
-        <!-- 외부 글로우 링 -->
-        <circle cx="25" cy="25" r="23" fill="url(#finalGradient)" opacity="0.4"/>
-        
-        <!-- 중간 링 -->
-        <circle cx="25" cy="25" r="18" fill="none" stroke="#4CAF50" stroke-width="2" opacity="0.7"/>
-        
-        <!-- 메인 마커 -->
-        <circle cx="25" cy="25" r="15" fill="#2E7D32" stroke="white" stroke-width="3" filter="url(#finalGlow)"/>
-        
-        <!-- 내부 하이라이트 -->
-        <circle cx="25" cy="25" r="10" fill="#4CAF50" opacity="0.8"/>
-        
-        <!-- 중앙 아이콘 -->
-        <text x="25" y="30" text-anchor="middle" font-size="18" fill="white" font-weight="bold">🤫</text>
-        
-        <!-- 작은 반짝임 효과 -->
-        <circle cx="20" cy="20" r="2" fill="white" opacity="0.9"/>
-        <circle cx="30" cy="22" r="1.5" fill="white" opacity="0.7"/>
-      </svg>
-    `);
-    
-    const imageSize = new (window as any).kakao.maps.Size(50, 50);
-    const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
-    marker.setImage(highlightImage);
   };
 
   // 거리 계산 함수
