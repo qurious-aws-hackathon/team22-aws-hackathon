@@ -17,7 +17,7 @@ export const useMarkerManager = (mapInstance: any) => {
   const markersRef = useRef<any[]>([]);
   const markersPlacesRef = useRef<Spot[]>([]);
   const markerImageCache = useRef<Map<string, any>>(new Map());
-  const animationIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const animationIntervalsRef = useRef<Map<string, number>>(new Map());
   const originalPositionsRef = useRef<Map<string, any>>(new Map());
 
   const startMarkerAnimation = useCallback((marker: any, placeId: string) => {

@@ -4,9 +4,16 @@ import {
   CreateSpotRequest,
   UpdateSpotRequest,
   GetSpotsRequest,
-  GetSpotDetailResponse,
-  ReactionResponse
+  GetSpotDetailResponse
 } from './models';
+
+interface ReactionResponse {
+  success: boolean;
+  message: string;
+  likes: number;
+  dislikes: number;
+  userReaction: 'like' | 'dislike' | null;
+}
 
 // 사용자 ID 생성 (로컬 스토리지에서 관리)
 const getUserId = (): string => {
