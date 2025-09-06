@@ -818,6 +818,11 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
+  // UTF-8 문자열을 Base64로 안전하게 인코딩하는 함수
+  const utf8ToBase64 = (str: string) => {
+    return btoa(unescape(encodeURIComponent(str)));
+  };
+
   const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end' | 'waypoint') => {
     if (!mapInstance.current) {
       console.error('지도 인스턴스가 없습니다');
@@ -847,7 +852,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#startGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <path d="M19 16l4-4 4 4-4 4z" fill="#2E7D32"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">START</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">출발지</text>
           </svg>
         `;
         break;
@@ -867,7 +872,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#endGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <rect x="20" y="12" width="8" height="8" fill="#C62828"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">END</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">도착지</text>
           </svg>
         `;
         break;
@@ -888,13 +893,13 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                   fill="url(#waypointGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <text x="24" y="21" text-anchor="middle" font-size="12" fill="#E65100" font-weight="bold">${waypointNumber}</text>
-            <text x="24" y="52" text-anchor="middle" font-size="9" fill="#E65100" font-weight="bold">STOP</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#E65100" font-weight="bold">경유지</text>
           </svg>
         `;
         break;
     }
     
-    const imageSrc = 'data:image/svg+xml;base64,' + btoa(markerSvg);
+    const imageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(markerSvg);
     
     const imageSize = new (window as any).kakao.maps.Size(48, 60);
     const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
