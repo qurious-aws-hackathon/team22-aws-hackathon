@@ -40,6 +40,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const routePolylineRef = useRef<any>(null);
   const startPointRef = useRef<LatLng | null>(null);
   const endPointRef = useRef<LatLng | null>(null);
+  const waypointsRef = useRef<LatLng[]>([]);
   const isRouteModeRef = useRef<boolean>(false);
   const [isLocating, setIsLocating] = useState(false);
   const [populationData, setPopulationData] = useState<RealtimePopulationData[]>([]);
@@ -796,20 +797,28 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         addRouteMarker(lat, lng, 'end');
         console.log('도착지 설정:', endPoint);
         console.log('🤫 조용한 경로 탐색 시작:', startPointRef.current, '→', endPoint);
-        drawQuietRoute(startPointRef.current, endPoint);
+        drawQuietRoute(startPointRef.current, endPoint, waypointsRef.current);
         break;
       case 'clear-route':
         clearRoute();
         break;
       case 'waypoint':
-        window.alert(`경유지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        if (!startPointRef.current) {
+          showAlert('error', '먼저 출발지를 설정해주세요.');
+          break;
+        }
+        const waypoint = { lat, lng };
+        waypointsRef.current.push(waypoint);
+        addRouteMarker(lat, lng, 'waypoint');
+        console.log('경유지 추가:', waypoint);
+        showAlert('success', `📍 경유지 ${waypointsRef.current.length}이 추가되었습니다.`);
         break;
     }
 
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
-  const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end') => {
+  const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end' | 'waypoint') => {
     if (!mapInstance.current) {
       console.error('지도 인스턴스가 없습니다');
       return;
@@ -818,8 +827,24 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     console.log(`${type} 마커 추가 중:`, lat, lng);
 
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
-    const color = type === 'start' ? '#4CAF50' : '#F44336';
-    const label = type === 'start' ? 'S' : 'E';
+    
+    let color = '';
+    let label = '';
+    
+    switch (type) {
+      case 'start':
+        color = '#4CAF50';
+        label = 'S';
+        break;
+      case 'end':
+        color = '#F44336';
+        label = 'E';
+        break;
+      case 'waypoint':
+        color = '#FF9800';
+        label = waypointsRef.current.length.toString();
+        break;
+    }
     
     const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
       <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
@@ -863,6 +888,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     // 상태 초기화
     startPointRef.current = null;
     endPointRef.current = null;
+    waypointsRef.current = [];
     isRouteModeRef.current = false;
     
     setRouteState({
@@ -914,16 +940,16 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  const drawQuietRoute = async (start: LatLng, end: LatLng) => {
+  const drawQuietRoute = async (start: LatLng, end: LatLng, waypoints: LatLng[] = []) => {
     try {
-      console.log('🤫 조용한 경로 탐색 중...', start, '→', end);
+      console.log('🤫 조용한 경로 탐색 중...', start, waypoints.length > 0 ? `→ ${waypoints.length}개 경유지 →` : '→', end);
       
-      // 조용한 경로 API로 최적화된 경로 가져오기
+      // 조용한 경로 API로 최적화된 경로 가져오기 (경유지 포함)
       const routeData = await quietRouteApi.findQuietRoute(start, end, {
         preferQuiet: true,
         avoidCrowded: true,
         maxDetour: 500
-      });
+      }, waypoints);
       
       console.log('📍 조용한 경로 데이터:', routeData);
       

@@ -45,29 +45,41 @@ export interface ProcessedRoute {
 }
 
 export const kakaoDirectionsApi = {
-  async getWalkingRoute(start: RoutePoint, end: RoutePoint): Promise<ProcessedRoute> {
+  async getWalkingRoute(start: RoutePoint, end: RoutePoint, waypoints?: RoutePoint[]): Promise<ProcessedRoute> {
     try {
-      console.log('🚶 카카오 모빌리티 API 호출:', start, '→', end);
+      console.log('🚶 카카오 모빌리티 API 호출:', start, waypoints ? `→ ${waypoints.length}개 경유지 →` : '→', end);
+      
+      // 경유지가 있는 경우와 없는 경우 구분
+      const requestBody: any = {
+        origin: {
+          x: start.lng.toString(),
+          y: start.lat.toString()
+        },
+        destination: {
+          x: end.lng.toString(),
+          y: end.lat.toString()
+        },
+        priority: 'RECOMMEND',
+        car_fuel: 'GASOLINE',
+        car_hipass: false,
+        alternatives: false,
+        road_details: true,
+        summary: false
+      };
+
+      // 경유지가 있으면 추가
+      if (waypoints && waypoints.length > 0) {
+        requestBody.waypoints = waypoints.map(wp => ({
+          x: wp.lng.toString(),
+          y: wp.lat.toString(),
+          name: `경유지${waypoints.indexOf(wp) + 1}`
+        }));
+      }
       
       // 올바른 카카오 모빌리티 API 호출
       const response = await axios.post<KakaoDirectionsResponse>(
         'https://apis-navi.kakaomobility.com/v1/waypoints/directions',
-        {
-          origin: {
-            x: start.lng.toString(),
-            y: start.lat.toString()
-          },
-          destination: {
-            x: end.lng.toString(),
-            y: end.lat.toString()
-          },
-          priority: 'RECOMMEND',
-          car_fuel: 'GASOLINE',
-          car_hipass: false,
-          alternatives: false,
-          road_details: true,
-          summary: false
-        },
+        requestBody,
         {
           headers: {
             'Authorization': `KakaoAK ${KAKAO_REST_API_KEY}`,
