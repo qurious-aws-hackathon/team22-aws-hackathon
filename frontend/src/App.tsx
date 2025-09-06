@@ -59,6 +59,15 @@ function App() {
     }
   };
 
+  const refreshSpots = async () => {
+    try {
+      const data = await api.spots.getSpots();
+      setSpots(data);
+    } catch (error) {
+      console.error('Failed to refresh spots:', error);
+    }
+  };
+
   const handleLoginSuccess = () => {
     setShowLoginModal(false);
     setAppState('loading');
@@ -215,7 +224,7 @@ function App() {
               places={spots} 
               onPlaceClick={handleSpotClick}
               selectedSpot={selectedSpot}
-              onSpotsUpdate={loadSpots}
+              onSpotsUpdate={refreshSpots}
               onSpotDelete={handleSpotDelete}
             />
           </div>

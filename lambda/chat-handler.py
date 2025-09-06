@@ -284,6 +284,7 @@ def get_bedrock_recommendations(preferences):
                         'quietRating': int(spot.get('quietRating', 85)),
                         'description': spot.get('description', '조용하고 좋은 장소입니다.'),
                         'noiseLevel': int(spot.get('noiseLevel', 30)),
+                        'imageUrl': None,  # Bedrock recommendations don't have images
                         'source': 'bedrock'
                     })
                 
@@ -324,6 +325,7 @@ def create_fallback_recommendations(preferences):
             'quietRating': 80,
             'description': spot['desc'],
             'noiseLevel': 35,
+            'imageUrl': None,  # Fallback recommendations don't have images
             'source': 'fallback'
         })
     
@@ -543,6 +545,7 @@ def get_spot_recommendations(preferences):
                 'quietRating': int(spot['quiet_rating']),
                 'description': spot.get('description', ''),
                 'noiseLevel': int(spot.get('noise_level', 40)),
+                'imageUrl': spot.get('image_url'),  # Include nullable image URL
                 'source': 'database'
             })
         

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { imageUploadApi } from '../api/imageUpload';
 
 interface PinRegistrationModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ interface PinRegistrationModalProps {
     category: string;
     noiseLevel: number;
     rating: number;
-    image?: File;
+    image_url?: string;
     isNoiseRecorded: boolean;
   }) => void;
 }
@@ -35,6 +36,8 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [address, setAddress] = useState('주소를 가져오는 중...');
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -155,7 +158,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
     analyserRef.current = null;
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedImage(file);
@@ -164,6 +167,22 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
         setImagePreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+
+      // Upload image immediately
+      setIsUploadingImage(true);
+      try {
+        const uploadResult = await imageUploadApi.uploadImage(file);
+        setUploadedImageUrl(uploadResult.imageUrl);
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        if (onAlert) {
+          onAlert('error', '이미지 업로드에 실패했습니다.');
+        }
+        setSelectedImage(null);
+        setImagePreview('');
+      } finally {
+        setIsUploadingImage(false);
+      }
     }
   };
 
@@ -180,7 +199,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
     
     onSubmit({
       ...formData,
-      image: selectedImage || undefined,
+      image_url: uploadedImageUrl || undefined,
       isNoiseRecorded: formData.isNoiseRecorded
     });
     onClose();
@@ -194,6 +213,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
     });
     setSelectedImage(null);
     setImagePreview('');
+    setUploadedImageUrl('');
   };
 
   const renderStars = () => {
@@ -341,7 +361,24 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
               ) : (
                 <div style={{ textAlign: 'center', color: '#666' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📷</div>
-                  <div>사진을 선택해주세요</div>
+                  <div>{isUploadingImage ? '업로드 중...' : '사진을 선택해주세요'}</div>
+                </div>
+              )}
+              {isUploadingImage && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  borderRadius: '8px'
+                }}>
+                  업로드 중...
                 </div>
               )}
             </div>
