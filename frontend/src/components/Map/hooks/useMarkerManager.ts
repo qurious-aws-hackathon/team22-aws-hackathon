@@ -17,6 +17,50 @@ export const useMarkerManager = (mapInstance: any) => {
   const markersRef = useRef<any[]>([]);
   const markersPlacesRef = useRef<Spot[]>([]);
   const markerImageCache = useRef<Map<string, any>>(new Map());
+  const animationIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const originalPositionsRef = useRef<Map<string, any>>(new Map());
+
+  const startMarkerAnimation = useCallback((marker: any, placeId: string) => {
+    // 기존 애니메이션이 있다면 정리
+    const existingInterval = animationIntervalsRef.current.get(placeId);
+    if (existingInterval) {
+      clearInterval(existingInterval);
+    }
+
+    // 원래 위치 저장
+    const originalPosition = marker.getPosition();
+    originalPositionsRef.current.set(placeId, originalPosition);
+
+    let animationStep = 0;
+    const animationSpeed = 50; // ms
+    const bounceHeight = 0.0001; // 위도 단위 (약 10m)
+
+    const interval = setInterval(() => {
+      animationStep += 0.2;
+      const offset = Math.sin(animationStep) * bounceHeight;
+      const newLat = originalPosition.getLat() + offset;
+      
+      const newPosition = new window.kakao.maps.LatLng(newLat, originalPosition.getLng());
+      marker.setPosition(newPosition);
+    }, animationSpeed);
+
+    animationIntervalsRef.current.set(placeId, interval);
+  }, []);
+
+  const stopMarkerAnimation = useCallback((marker: any, placeId: string) => {
+    const interval = animationIntervalsRef.current.get(placeId);
+    if (interval) {
+      clearInterval(interval);
+      animationIntervalsRef.current.delete(placeId);
+    }
+
+    // 원래 위치로 복원
+    const originalPosition = originalPositionsRef.current.get(placeId);
+    if (originalPosition) {
+      marker.setPosition(originalPosition);
+      originalPositionsRef.current.delete(placeId);
+    }
+  }, []);
 
   const createMarkerIcon = useCallback((category: string, isHighlighted = false) => {
     const cacheKey = `${category}-${isHighlighted}`;
@@ -60,6 +104,14 @@ export const useMarkerManager = (mapInstance: any) => {
   }, []);
 
   const clearMarkers = useCallback(() => {
+    // 모든 애니메이션 정리
+    animationIntervalsRef.current.forEach((interval) => {
+      clearInterval(interval);
+    });
+    animationIntervalsRef.current.clear();
+    originalPositionsRef.current.clear();
+    
+    // 마커 정리
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
     markersPlacesRef.current = [];
@@ -97,10 +149,22 @@ export const useMarkerManager = (mapInstance: any) => {
       if (!place) return;
 
       const isHighlighted = highlightedPlaceIds.includes(place.id);
-      const markerIcon = createMarkerIcon(place.category || '기타', isHighlighted);
-      marker.setImage(markerIcon);
+      
+      if (isHighlighted) {
+        // 빨간 테두리 마커로 변경
+        const markerIcon = createMarkerIcon(place.category || '기타', true);
+        marker.setImage(markerIcon);
+        // 애니메이션 시작
+        startMarkerAnimation(marker, place.id);
+      } else {
+        // 일반 마커로 변경
+        const markerIcon = createMarkerIcon(place.category || '기타', false);
+        marker.setImage(markerIcon);
+        // 애니메이션 정지
+        stopMarkerAnimation(marker, place.id);
+      }
     });
-  }, [createMarkerIcon]);
+  }, [createMarkerIcon, startMarkerAnimation, stopMarkerAnimation]);
 
   const getMarkerByPlaceId = useCallback((placeId: string) => {
     const index = markersPlacesRef.current.findIndex(p => p.id === placeId);
