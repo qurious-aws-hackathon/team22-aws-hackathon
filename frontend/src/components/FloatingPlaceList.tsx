@@ -84,26 +84,26 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           className={`filter-tab ${filter === 'latest' ? 'active' : ''}`}
           onClick={() => setFilter('latest')}
         >
-          최신
+          최신순
         </button>
         <button 
           className={`filter-tab ${filter === 'distance' ? 'active' : ''}`}
           onClick={() => setFilter('distance')}
           disabled={!userLocation}
         >
-          거리
+          거리순
         </button>
         <button 
           className={`filter-tab ${filter === 'likes' ? 'active' : ''}`}
           onClick={() => setFilter('likes')}
         >
-          좋아요
+          좋아요순
         </button>
         <button 
           className={`filter-tab ${filter === 'quiet' ? 'active' : ''}`}
           onClick={() => setFilter('quiet')}
         >
-          조용함
+          조용함순
         </button>
       </div>
       
@@ -112,7 +112,19 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           <div 
             key={place.id} 
             className="floating-place-item"
-            onClick={() => onPlaceClick(place)}
+            onClick={() => {
+              // 클릭 애니메이션 효과
+              const element = document.querySelector(`[data-place-id="${place.id}"]`) as HTMLElement;
+              if (element) {
+                element.style.transform = 'scale(0.95)';
+                element.style.transition = 'transform 0.1s ease-out';
+                setTimeout(() => {
+                  element.style.transform = 'scale(1)';
+                }, 100);
+              }
+              onPlaceClick(place);
+            }}
+            data-place-id={place.id}
           >
             <div className="place-info">
               <div className="place-name">{place.name}</div>

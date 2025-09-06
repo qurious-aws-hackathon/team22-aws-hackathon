@@ -40,6 +40,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   const routePolylineRef = useRef<any>(null);
   const startPointRef = useRef<LatLng | null>(null);
   const endPointRef = useRef<LatLng | null>(null);
+  const waypointsRef = useRef<LatLng[]>([]);
   const isRouteModeRef = useRef<boolean>(false);
   const [isLocating, setIsLocating] = useState(false);
   const [populationData, setPopulationData] = useState<RealtimePopulationData[]>([]);
@@ -274,18 +275,39 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     // 지도 이동 (팝업이 중앙에 오도록 조정)
     const moveLatLng = new (window as any).kakao.maps.LatLng(currentSpot.lat, currentSpot.lng);
 
-    // 팝업이 화면 중앙에 오도록 마커보다 위쪽으로 지도 중심 이동
-    const projection = mapInstance.current.getProjection();
-    const point = projection.pointFromCoords(moveLatLng);
+    // 현재 줌 레벨에 따라 오프셋 조정
+    const currentLevel = mapInstance.current.getLevel();
+    const targetLevel = 3;
 
-    // 팝업 높이만큼 위쪽으로 이동 (약 150px)
-    const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y - 150);
-    const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+    // 먼저 적절한 줌 레벨로 이동
+    if (currentLevel > 5) {
+      // 줌 아웃 상태에서는 먼저 줌인 후 위치 조정
+      mapInstance.current.setLevel(targetLevel);
+      setTimeout(() => {
+        // 줌 변경 후 정확한 위치로 이동
+        const projection = mapInstance.current.getProjection();
+        const point = projection.pointFromCoords(moveLatLng);
+        const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 150);
+        const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+        mapInstance.current.panTo(adjustedLatLng);
+      }, 200);
+    } else {
+      // 일반 줌 레벨에서는 기존 로직 사용
+      const projection = mapInstance.current.getProjection();
+      const point = projection.pointFromCoords(moveLatLng);
+      const adjustedPoint = new (window as any).kakao.maps.Point(point.x, point.y + 150);
+      const adjustedLatLng = projection.coordsFromPoint(adjustedPoint);
+      mapInstance.current.panTo(adjustedLatLng);
 
-    mapInstance.current.setCenter(adjustedLatLng);
-    mapInstance.current.setLevel(3);
+      setTimeout(() => {
+        if (mapInstance.current.getLevel() !== targetLevel) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    }
 
-    // 오버레이 생성
+    // 오버레이 생성 (줌 레벨에 따라 타이밍 조정)
+    const overlayDelay = currentLevel > 5 ? 800 : 500;
     setTimeout(() => {
       // 다시 한번 중복 체크
       if (infoWindowRef.current) {
@@ -299,7 +321,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const currentUser = api.auth.getCurrentUser();
 
       overlayContent.innerHTML = `
-        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; word-wrap: break-word; overflow-wrap: break-word;">
+        <div style="background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); border: 2px solid #667eea; width: 350px; padding: 16px; word-wrap: break-word; overflow-wrap: break-word; opacity: 0; transform: translateY(10px); transition: all 0.3s ease-out;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h3 style="margin: 0; font-size: 18px; font-weight: 600; word-wrap: break-word; overflow-wrap: break-word;">장소 상세</h3>
             <button id="close-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666; flex-shrink: 0;">✕</button>
@@ -311,6 +333,12 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               삭제
             </button>
           </div>
+          
+          ${place.image_url ? `
+            <div style="margin-bottom: 16px;">
+              <img src="${place.image_url}" alt="${place.name}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" loading="eager" />
+            </div>
+          ` : ''}
           
           <div style="display: flex; gap: 12px; margin-bottom: 16px;">
             <button id="like-btn" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px;">
@@ -378,13 +406,22 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       const overlay = new (window as any).kakao.maps.CustomOverlay({
         content: overlayContent,
         position: new (window as any).kakao.maps.LatLng(place.lat, place.lng),
-        yAnchor: 1.3, // 마커 아이콘 위에 표시
+        yAnchor: 0.1, // 마커 아래쪽에 표시
         xAnchor: 0.5
       });
 
       overlay.setMap(mapInstance.current);
       overlay.placeId = place.id; // 장소 ID 저장
       infoWindowRef.current = overlay;
+
+      // 팝업 등장 애니메이션 트리거
+      setTimeout(() => {
+        const popupElement = overlayContent.querySelector('div');
+        if (popupElement) {
+          popupElement.style.opacity = '1';
+          popupElement.style.transform = 'translateY(0)';
+        }
+      }, 50);
 
       // 이벤트 리스너 등록
       const closeBtn = overlayContent.querySelector('#close-btn');
@@ -567,16 +604,33 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       };
 
       loadComments();
-    }, 500);
+    }, overlayDelay);
   };
 
   const moveToSpot = (spot: Spot) => {
     if (!mapInstance.current) return;
 
     const moveLatLng = new (window as any).kakao.maps.LatLng(spot.lat, spot.lng);
+    const currentLevel = mapInstance.current.getLevel();
+    const targetLevel = 3;
 
-    mapInstance.current.setCenter(moveLatLng);
-    mapInstance.current.setLevel(3);
+    // 줌 아웃 상태에서는 먼저 중심으로 이동 후 줌인
+    if (currentLevel > 5) {
+      mapInstance.current.panTo(moveLatLng);
+      setTimeout(() => {
+        if (mapInstance.current) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    } else {
+      // 일반 줌 레벨에서는 부드러운 이동
+      mapInstance.current.panTo(moveLatLng);
+      setTimeout(() => {
+        if (mapInstance.current && mapInstance.current.getLevel() !== targetLevel) {
+          mapInstance.current.setLevel(targetLevel);
+        }
+      }, 300);
+    }
 
     setTimeout(() => {
       if (mapInstance.current) {
@@ -791,8 +845,15 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         const moveLatLng = new (window as any).kakao.maps.LatLng(latitude, longitude);
 
         if (mapInstance.current) {
-          mapInstance.current.setCenter(moveLatLng);
-          mapInstance.current.setLevel(3);
+          // 부드러운 애니메이션으로 이동
+          mapInstance.current.panTo(moveLatLng);
+
+          // 줌 레벨도 부드럽게 변경
+          setTimeout(() => {
+            if (mapInstance.current && mapInstance.current.getLevel() !== 3) {
+              mapInstance.current.setLevel(3);
+            }
+          }, 300);
 
           addCurrentLocationMarker(latitude, longitude);
         }
@@ -848,20 +909,33 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         addRouteMarker(lat, lng, 'end');
         console.log('도착지 설정:', endPoint);
         console.log('🤫 조용한 경로 탐색 시작:', startPointRef.current, '→', endPoint);
-        drawQuietRoute(startPointRef.current, endPoint);
+        drawQuietRoute(startPointRef.current, endPoint, waypointsRef.current);
         break;
       case 'clear-route':
         clearRoute();
         break;
       case 'waypoint':
-        window.alert(`경유지로 설정: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        if (!startPointRef.current) {
+          showAlert('error', '먼저 출발지를 설정해주세요.');
+          break;
+        }
+        const waypoint = { lat, lng };
+        waypointsRef.current.push(waypoint);
+        addRouteMarker(lat, lng, 'waypoint');
+        console.log('경유지 추가:', waypoint);
+        showAlert('success', `📍 경유지 ${waypointsRef.current.length}이 추가되었습니다.`);
         break;
     }
 
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
-  const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end') => {
+  // UTF-8 문자열을 Base64로 안전하게 인코딩하는 함수
+  const utf8ToBase64 = (str: string) => {
+    return btoa(unescape(encodeURIComponent(str)));
+  };
+
+  const addRouteMarker = (lat: number, lng: number, type: 'start' | 'end' | 'waypoint') => {
     if (!mapInstance.current) {
       console.error('지도 인스턴스가 없습니다');
       return;
@@ -870,17 +944,76 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     console.log(`${type} 마커 추가 중:`, lat, lng);
 
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
-    const color = type === 'start' ? '#4CAF50' : '#F44336';
-    const label = type === 'start' ? 'S' : 'E';
 
-    const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
-        <text x="20" y="28" text-anchor="middle" font-size="18" fill="white" font-weight="bold">${label}</text>
-      </svg>
-    `);
+    let markerSvg = '';
 
-    const imageSize = new (window as any).kakao.maps.Size(40, 40);
+    switch (type) {
+      case 'start':
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="startGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#startGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <path d="M19 16l4-4 4 4-4 4z" fill="#2E7D32"/>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">출발지</text>
+          </svg>
+        `;
+        break;
+      case 'end':
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="endGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#EF5350;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#C62828;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#endGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <rect x="20" y="12" width="8" height="8" fill="#C62828"/>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">도착지</text>
+          </svg>
+        `;
+        break;
+      case 'waypoint':
+        const waypointNumber = waypointsRef.current.length;
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="waypointGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#FFA726;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#E65100;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#waypointGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <text x="24" y="21" text-anchor="middle" font-size="12" fill="#E65100" font-weight="bold">${waypointNumber}</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#E65100" font-weight="bold">경유지</text>
+          </svg>
+        `;
+        break;
+    }
+
+    const imageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(markerSvg);
+
+    const imageSize = new (window as any).kakao.maps.Size(48, 60);
     const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
 
     const marker = new (window as any).kakao.maps.Marker({
@@ -915,6 +1048,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     // 상태 초기화
     startPointRef.current = null;
     endPointRef.current = null;
+    waypointsRef.current = [];
     isRouteModeRef.current = false;
 
     setRouteState({
@@ -948,17 +1082,9 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       try {
         const place = markersPlacesRef.current?.[index];
         if (place && marker && marker.setImage) {
-          // 기본 마커 이미지로 복원
-          const defaultImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
-              <circle cx="15" cy="15" r="12" fill="#2196F3" stroke="white" stroke-width="2"/>
-              <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
-            </svg>
-          `);
-
-          const imageSize = new (window as any).kakao.maps.Size(30, 30);
-          const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
-          marker.setImage(defaultImage);
+          // 기존 createMarkerIcon 함수로 원래 디자인 복원
+          const originalIcon = createMarkerIcon(place.category || '기타');
+          marker.setImage(originalIcon);
         }
       } catch (error) {
         console.warn(`마커 ${index} 초기화 실패:`, error);
@@ -966,16 +1092,16 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  const drawQuietRoute = async (start: LatLng, end: LatLng) => {
+  const drawQuietRoute = async (start: LatLng, end: LatLng, waypoints: LatLng[] = []) => {
     try {
-      console.log('🤫 조용한 경로 탐색 중...', start, '→', end);
+      console.log('🤫 조용한 경로 탐색 중...', start, waypoints.length > 0 ? `→ ${waypoints.length}개 경유지 →` : '→', end);
 
-      // 조용한 경로 API로 최적화된 경로 가져오기
+      // 조용한 경로 API로 최적화된 경로 가져오기 (경유지 포함)
       const routeData = await quietRouteApi.findQuietRoute(start, end, {
         preferQuiet: true,
         avoidCrowded: true,
         maxDetour: 500
-      });
+      }, waypoints);
 
       console.log('📍 조용한 경로 데이터:', routeData);
 
@@ -1166,65 +1292,48 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     });
   };
 
-  // 마커 애니메이션 효과
+  // 마커 강조 효과 - 기존 물방울 디자인에 빨간색 테두리
   const animateMarker = (marker: any, index: number) => {
-    let scale = 1;
-    let growing = true;
-    let animationCount = 0;
-    const maxAnimations = 6; // 3번 깜빡임
+    const originalPlace = markersPlacesRef.current[index];
+    if (!originalPlace) return;
 
-    const animate = () => {
-      if (animationCount >= maxAnimations) {
-        // 애니메이션 완료 후 최종 강조 마커로 설정
-        setFinalHighlightMarker(marker);
-        return;
-      }
-
-      scale = growing ? scale + 0.1 : scale - 0.1;
-
-      if (scale >= 1.4) {
-        growing = false;
-      } else if (scale <= 1) {
-        growing = true;
-        animationCount++;
-      }
-
-      // 크기와 색상이 변하는 마커 생성
-      const pulseColor = growing ? '#4CAF50' : '#81C784';
-      const size = Math.round(30 * scale);
-
-      const animatedImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${pulseColor}" stroke="#2E7D32" stroke-width="2"/>
-          <circle cx="${size/2}" cy="${size/2}" r="${size/3}" fill="#A5D6A7" opacity="0.8"/>
-          <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" font-size="${size/3}" fill="white" font-weight="bold">🤫</text>
-        </svg>
-      `);
-
-      const imageSize = new (window as any).kakao.maps.Size(size, size);
-      const animatedImage = new (window as any).kakao.maps.MarkerImage(animatedImageSrc, imageSize);
-      marker.setImage(animatedImage);
-
-      setTimeout(animate, 150); // 150ms 간격으로 애니메이션
+    // 기존 물방울 디자인에 빨간색 테두리 추가
+    const categoryConfig = {
+      '카페': { emoji: '☕', color: '#FF6B9D' },
+      '도서관': { emoji: '📚', color: '#4ECDC4' },
+      '공원': { emoji: '🌳', color: '#45B7D1' },
+      '기타': { emoji: '📍', color: '#96CEB4' }
     };
 
-    // 애니메이션 시작 전 약간의 지연 (순차적 효과)
-    setTimeout(animate, index * 100);
-  };
+    const config = categoryConfig[originalPlace.category as keyof typeof categoryConfig] || categoryConfig['기타'];
 
-  // 최종 강조 마커 설정
-  const setFinalHighlightMarker = (marker: any) => {
-    const highlightImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="18" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
-        <circle cx="20" cy="20" r="12" fill="#81C784"/>
-        <circle cx="20" cy="20" r="6" fill="#A5D6A7" opacity="0.8"/>
-        <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
+    const highlightSvg = `
+      <svg width="60" height="75" viewBox="0 0 60 75" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow${index}" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+          </filter>
+        </defs>
+        <path d="M30 5C16.193 5 5 16.193 5 30c0 22.5 25 40 25 40s25-17.5 25-40C55 16.193 43.807 5 30 5z" 
+              fill="${config.color}" 
+              stroke="#FF0000" 
+              stroke-width="3"
+              filter="url(#shadow${index})"/>
+        <circle cx="30" cy="30" r="18" fill="white" opacity="0.9"/>
+        <text x="30" y="38" text-anchor="middle" font-size="24" fill="${config.color}">${config.emoji}</text>
       </svg>
-    `);
+    `;
 
-    const imageSize = new (window as any).kakao.maps.Size(40, 40);
-    const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
+    const highlightImageSrc = 'data:image/svg+xml;base64,' + utf8ToBase64(highlightSvg);
+    const imageSize = new (window as any).kakao.maps.Size(60, 75);
+    const highlightImage = new (window as any).kakao.maps.MarkerImage(
+      highlightImageSrc,
+      imageSize,
+      {
+        offset: new (window as any).kakao.maps.Point(30, 75)
+      }
+    );
+
     marker.setImage(highlightImage);
   };
 
@@ -1250,7 +1359,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     category: string;
     noiseLevel: number;
     rating: number;
-    image?: File;
+    image_url?: string;
     isNoiseRecorded: boolean;
   }) => {
     try {
@@ -1269,7 +1378,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           rating: data.rating,
           quiet_rating: Math.round(quietRating),
           is_noise_recorded: data.isNoiseRecorded,
-          user_id: currentUser ? currentUser.id : 'anonymous'
+          user_id: currentUser ? currentUser.id : 'anonymous',
+          image_url: data.image_url || undefined
         };
 
 
@@ -1281,8 +1391,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       // 성공 시 모달 닫기
       setShowPinModal(false);
-
-      showAlert('success', `"${data.name}" 장소가 성공적으로 등록되었습니다!`);
 
       // 스팟 목록 새로고침
       if (onSpotsUpdate) {

@@ -23,13 +23,14 @@ export const quietRouteApi = {
       preferQuiet: true,
       avoidCrowded: true,
       maxDetour: 500
-    }
+    },
+    waypoints?: RoutePoint[]
   ): Promise<ProcessedRoute & { quietness_score: number }> {
     
     try {
-      // 1. 기본 카카오 경로 획득
+      // 1. 기본 카카오 경로 획득 (경유지 포함)
       console.log('🗺️ 기본 경로 탐색 중...');
-      const baseRoute = await kakaoDirectionsApi.getWalkingRoute(start, end);
+      const baseRoute = await kakaoDirectionsApi.getWalkingRoute(start, end, waypoints);
       
       // 2. 경로 주변의 조용함 데이터 수집
       console.log('🔍 주변 조용함 데이터 수집 중...');

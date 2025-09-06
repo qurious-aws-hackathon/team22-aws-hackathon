@@ -53,10 +53,44 @@ function App() {
       const data = await api.spots.getSpots();
       setSpots(data);
       setAppState('ready');
+      // 백그라운드에서 이미지 프리로드
+      preloadImages(data);
     } catch (error) {
       console.error('Failed to load spots:', error);
       setAppState('ready'); // 에러가 있어도 지도는 보여주기
     }
+  };
+
+  const refreshSpots = async () => {
+    try {
+      const data = await api.spots.getSpots();
+      setSpots(data);
+      // 백그라운드에서 이미지 프리로드
+      preloadImages(data);
+    } catch (error) {
+      console.error('Failed to refresh spots:', error);
+    }
+  };
+
+  const preloadImages = (spots: Spot[]) => {
+    // 이미지가 있는 spot들만 필터링
+    const spotsWithImages = spots.filter(spot => spot.image_url);
+    
+    console.log(`🖼️ 이미지 프리로딩 시작: ${spotsWithImages.length}개`);
+    
+    spotsWithImages.forEach((spot, index) => {
+      // 순차적으로 로드하여 네트워크 부하 분산
+      setTimeout(() => {
+        const img = new Image();
+        img.onload = () => {
+          console.log(`✅ 이미지 로드 완료: ${spot.name}`);
+        };
+        img.onerror = () => {
+          console.warn(`❌ 이미지 로드 실패: ${spot.name}`);
+        };
+        img.src = spot.image_url!;
+      }, index * 100); // 100ms 간격으로 순차 로드
+    });
   };
 
   const handleLoginSuccess = () => {
@@ -215,7 +249,7 @@ function App() {
               places={spots} 
               onPlaceClick={handleSpotClick}
               selectedSpot={selectedSpot}
-              onSpotsUpdate={loadSpots}
+              onSpotsUpdate={refreshSpots}
               onSpotDelete={handleSpotDelete}
             />
           </div>
