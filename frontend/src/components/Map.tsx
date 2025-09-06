@@ -828,32 +828,75 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
     const position = new (window as any).kakao.maps.LatLng(lat, lng);
     
-    let color = '';
-    let label = '';
+    let markerSvg = '';
     
     switch (type) {
       case 'start':
-        color = '#4CAF50';
-        label = 'S';
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="startGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#startGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <path d="M19 16l4-4 4 4-4 4z" fill="#2E7D32"/>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">출발지</text>
+          </svg>
+        `;
         break;
       case 'end':
-        color = '#F44336';
-        label = 'E';
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="endGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#EF5350;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#C62828;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#endGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <rect x="20" y="12" width="8" height="8" fill="#C62828"/>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">도착지</text>
+          </svg>
+        `;
         break;
       case 'waypoint':
-        color = '#FF9800';
-        label = waypointsRef.current.length.toString();
+        const waypointNumber = waypointsRef.current.length;
+        markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+            <defs>
+              <linearGradient id="waypointGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#FFA726;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#E65100;stop-opacity:1" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" 
+                  fill="url(#waypointGradient)" filter="url(#shadow)"/>
+            <circle cx="24" cy="16" r="10" fill="white"/>
+            <text x="24" y="21" text-anchor="middle" font-size="12" fill="#E65100" font-weight="bold">${waypointNumber}</text>
+            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#E65100" font-weight="bold">경유지</text>
+          </svg>
+        `;
         break;
     }
     
-    const imageSrc = 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
-        <text x="20" y="28" text-anchor="middle" font-size="18" fill="white" font-weight="bold">${label}</text>
-      </svg>
-    `);
+    const imageSrc = 'data:image/svg+xml;base64,' + btoa(markerSvg);
     
-    const imageSize = new (window as any).kakao.maps.Size(40, 40);
+    const imageSize = new (window as any).kakao.maps.Size(48, 60);
     const markerImage = new (window as any).kakao.maps.MarkerImage(imageSrc, imageSize);
     
     const marker = new (window as any).kakao.maps.Marker({
