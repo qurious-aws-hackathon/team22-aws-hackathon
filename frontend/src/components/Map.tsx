@@ -1264,12 +1264,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                 font-weight="bold">🤫</text>
         </svg>
       `);
-          <circle cx="${size/2}" cy="${size/2}" r="${size/3}" fill="#A5D6A7" opacity="0.8"/>
-          <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" font-size="${size/3}" fill="white" font-weight="bold">🤫</text>
-        </svg>
-      `);
       
-      const imageSize = new (window as any).kakao.maps.Size(size, size);
+      const imageSize = new (window as any).kakao.maps.Size(glowSize, glowSize);
       const animatedImage = new (window as any).kakao.maps.MarkerImage(animatedImageSrc, imageSize);
       marker.setImage(animatedImage);
       
