@@ -78,6 +78,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     isRouteMode: false,
     recommendedRoute: null
   });
+  const [nearbyQuietPlaces, setNearbyQuietPlaces] = useState<Spot[]>([]);
 
   useEffect(() => {
     initializeMap();
@@ -816,7 +817,33 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       recommendedRoute: null
     });
     
+    // 주변 조용한 장소 목록 초기화
+    setNearbyQuietPlaces([]);
+    
+    // 마커 강조 표시 초기화
+    resetMarkerHighlights();
+    
     console.log('경로 초기화 완료');
+  };
+
+  // 마커 강조 표시 초기화
+  const resetMarkerHighlights = () => {
+    markersRef.current.forEach((marker, index) => {
+      const place = markersPlacesRef.current[index];
+      if (place) {
+        // 기본 마커 이미지로 복원
+        const defaultImageSrc = 'data:image/svg+xml;base64,' + btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+            <circle cx="15" cy="15" r="12" fill="#2196F3" stroke="white" stroke-width="2"/>
+            <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
+          </svg>
+        `);
+        
+        const imageSize = new (window as any).kakao.maps.Size(30, 30);
+        const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
+        marker.setImage(defaultImage);
+      }
+    });
   };
 
   const drawQuietRoute = async (start: LatLng, end: LatLng) => {
@@ -874,8 +901,16 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         }
       }));
       
+      // 경로 주변 조용한 장소 찾기
+      const nearbyPlaces = findNearbyQuietPlaces(routeData.points, places, 3000); // 3km 반경
+      setNearbyQuietPlaces(nearbyPlaces);
+      
+      // 마커 강조 표시
+      highlightNearbyPlaces(nearbyPlaces);
+      
       // 사용자에게 경로 정보 알림
-      showAlert('success', `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%`);
+      const nearbyCount = nearbyPlaces.length;
+      showAlert('success', `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%\n🏞️ 주변 조용한 장소: ${nearbyCount}개`);
       
     } catch (error) {
       console.error('❌ 조용한 경로 탐색 실패:', error);
@@ -905,6 +940,66 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         showAlert('error', '경로를 찾을 수 없습니다. 다시 시도해주세요.');
       }
     }
+  };
+
+  // 경로 주변 조용한 장소 찾기
+  const findNearbyQuietPlaces = (routePoints: LatLng[], allPlaces: Spot[], maxDistance: number): Spot[] => {
+    const nearbyPlaces: Spot[] = [];
+    
+    allPlaces.forEach(place => {
+      const placePoint = { lat: place.latitude, lng: place.longitude };
+      
+      // 경로의 각 점과 장소 사이의 최단 거리 계산
+      const minDistance = Math.min(...routePoints.map(routePoint => 
+        calculateDistance(routePoint, placePoint)
+      ));
+      
+      if (minDistance <= maxDistance) {
+        nearbyPlaces.push(place);
+      }
+    });
+    
+    console.log(`🏞️ 경로 주변 ${maxDistance/1000}km 이내 조용한 장소: ${nearbyPlaces.length}개`);
+    return nearbyPlaces;
+  };
+
+  // 주변 조용한 장소 마커 강조
+  const highlightNearbyPlaces = (nearbyPlaces: Spot[]) => {
+    markersRef.current.forEach((marker, index) => {
+      const place = markersPlacesRef.current[index];
+      const isNearby = nearbyPlaces.some(nearbyPlace => nearbyPlace.id === place?.id);
+      
+      if (isNearby) {
+        // 강조된 마커 이미지 생성
+        const highlightImageSrc = 'data:image/svg+xml;base64,' + btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="18" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
+            <circle cx="20" cy="20" r="12" fill="#81C784"/>
+            <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
+          </svg>
+        `);
+        
+        const imageSize = new (window as any).kakao.maps.Size(40, 40);
+        const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
+        marker.setImage(highlightImage);
+      }
+    });
+  };
+
+  // 거리 계산 함수
+  const calculateDistance = (point1: LatLng, point2: LatLng): number => {
+    const R = 6371e3; // 지구 반지름 (미터)
+    const φ1 = point1.lat * Math.PI / 180;
+    const φ2 = point2.lat * Math.PI / 180;
+    const Δφ = (point2.lat - point1.lat) * Math.PI / 180;
+    const Δλ = (point2.lng - point1.lng) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
   };
 
   const handlePinRegistration = async (data: {
@@ -1149,6 +1244,109 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             };
           })}
         />
+      )}
+      
+      {/* 주변 조용한 장소 목록 */}
+      {nearbyQuietPlaces.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            padding: '16px',
+            maxWidth: '300px',
+            maxHeight: '400px',
+            overflowY: 'auto',
+            zIndex: 1000
+          }}
+        >
+          <h3 style={{ 
+            margin: '0 0 12px 0', 
+            fontSize: '16px', 
+            fontWeight: 'bold',
+            color: '#2E7D32',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            🤫 경로 주변 조용한 장소
+            <span style={{
+              background: '#4CAF50',
+              color: 'white',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '12px'
+            }}>
+              {nearbyQuietPlaces.length}개
+            </span>
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {nearbyQuietPlaces.map((place, index) => (
+              <div
+                key={place.id}
+                style={{
+                  padding: '12px',
+                  background: '#F1F8E9',
+                  borderRadius: '8px',
+                  border: '1px solid #C8E6C9',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => moveToSpot(place)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#E8F5E8';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#F1F8E9';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  color: '#2E7D32',
+                  marginBottom: '4px'
+                }}>
+                  {place.name}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#558B2F',
+                  marginBottom: '6px'
+                }}>
+                  {place.description}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: '#689F38'
+                }}>
+                  <span>👍 {place.likes || 0}</span>
+                  <span>📍 클릭하여 이동</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div style={{
+            marginTop: '12px',
+            padding: '8px',
+            background: '#E8F5E8',
+            borderRadius: '6px',
+            fontSize: '11px',
+            color: '#558B2F',
+            textAlign: 'center'
+          }}>
+            💡 경로에서 3km 이내의 조용한 장소들입니다
+          </div>
+        </div>
       )}
     </div>
   );
