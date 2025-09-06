@@ -793,9 +793,17 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
   };
 
   const clearRoute = () => {
-    // 경로 마커들 제거
-    routeMarkersRef.current.forEach(marker => marker.setMap(null));
-    routeMarkersRef.current = [];
+    console.log('경로 초기화 시작');
+    
+    // 경로 마커들 제거 (안전성 체크)
+    if (routeMarkersRef.current && routeMarkersRef.current.length > 0) {
+      routeMarkersRef.current.forEach(marker => {
+        if (marker && marker.setMap) {
+          marker.setMap(null);
+        }
+      });
+      routeMarkersRef.current = [];
+    }
     
     // 경로 폴리라인 제거
     if (routePolylineRef.current) {
@@ -819,27 +827,40 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     setNearbyQuietPlaces([]);
     
     // 마커 강조 표시 초기화
-    resetMarkerHighlights();
+    try {
+      resetMarkerHighlights();
+    } catch (error) {
+      console.warn('마커 강조 표시 초기화 실패:', error);
+    }
     
     console.log('경로 초기화 완료');
   };
 
   // 마커 강조 표시 초기화
   const resetMarkerHighlights = () => {
+    if (!markersRef.current || !Array.isArray(markersRef.current)) {
+      console.warn('마커 배열이 초기화되지 않음');
+      return;
+    }
+
     markersRef.current.forEach((marker, index) => {
-      const place = markersPlacesRef.current[index];
-      if (place) {
-        // 기본 마커 이미지로 복원
-        const defaultImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
-            <circle cx="15" cy="15" r="12" fill="#2196F3" stroke="white" stroke-width="2"/>
-            <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
-          </svg>
-        `);
-        
-        const imageSize = new (window as any).kakao.maps.Size(30, 30);
-        const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
-        marker.setImage(defaultImage);
+      try {
+        const place = markersPlacesRef.current?.[index];
+        if (place && marker && marker.setImage) {
+          // 기본 마커 이미지로 복원
+          const defaultImageSrc = 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+              <circle cx="15" cy="15" r="12" fill="#2196F3" stroke="white" stroke-width="2"/>
+              <text x="15" y="20" text-anchor="middle" font-size="12" fill="white" font-weight="bold">🤫</text>
+            </svg>
+          `);
+          
+          const imageSize = new (window as any).kakao.maps.Size(30, 30);
+          const defaultImage = new (window as any).kakao.maps.MarkerImage(defaultImageSrc, imageSize);
+          marker.setImage(defaultImage);
+        }
+      } catch (error) {
+        console.warn(`마커 ${index} 초기화 실패:`, error);
       }
     });
   };
@@ -963,23 +984,32 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   // 주변 조용한 장소 마커 강조
   const highlightNearbyPlaces = (nearbyPlaces: Spot[]) => {
+    if (!markersRef.current || !Array.isArray(markersRef.current)) {
+      console.warn('마커 배열이 초기화되지 않음');
+      return;
+    }
+
     markersRef.current.forEach((marker, index) => {
-      const place = markersPlacesRef.current[index];
-      const isNearby = nearbyPlaces.some(nearbyPlace => nearbyPlace.id === place?.id);
-      
-      if (isNearby) {
-        // 강조된 마커 이미지 생성
-        const highlightImageSrc = 'data:image/svg+xml;base64,' + btoa(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="18" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
-            <circle cx="20" cy="20" r="12" fill="#81C784"/>
-            <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
-          </svg>
-        `);
+      try {
+        const place = markersPlacesRef.current?.[index];
+        const isNearby = nearbyPlaces.some(nearbyPlace => nearbyPlace.id === place?.id);
         
-        const imageSize = new (window as any).kakao.maps.Size(40, 40);
-        const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
-        marker.setImage(highlightImage);
+        if (isNearby && marker && marker.setImage) {
+          // 강조된 마커 이미지 생성
+          const highlightImageSrc = 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="18" fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
+              <circle cx="20" cy="20" r="12" fill="#81C784"/>
+              <text x="20" y="26" text-anchor="middle" font-size="16" fill="white" font-weight="bold">🤫</text>
+            </svg>
+          `);
+          
+          const imageSize = new (window as any).kakao.maps.Size(40, 40);
+          const highlightImage = new (window as any).kakao.maps.MarkerImage(highlightImageSrc, imageSize);
+          marker.setImage(highlightImage);
+        }
+      } catch (error) {
+        console.warn(`마커 ${index} 강조 표시 실패:`, error);
       }
     });
   };
