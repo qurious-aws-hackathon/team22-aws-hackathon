@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Spot, api } from '../api';
+import VerifiedBadge from './VerifiedBadge';
+import Confirm from './Confirm';
+import { useLoading } from '../contexts/LoadingContext';
 
 interface PlaceDetailPopupProps {
   spotId: string | null;
@@ -21,8 +24,10 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
   const [commentInput, setCommentInput] = useState('');
   const [userReaction, setUserReaction] = useState<'like' | 'dislike' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const currentUser = api.auth.getCurrentUser();
+  const { withLoading } = useLoading();
 
   useEffect(() => {
     if (spotId && isOpen) {
@@ -86,14 +91,14 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
     if (!currentSpot) return;
     try {
       const response = await api.spots.likeSpot(currentSpot.id);
-      
+
       // 로컬 상태만 업데이트 (전체 재조회 없이)
       setCurrentSpot(prev => prev ? {
         ...prev,
         like_count: response.likes,
         dislike_count: response.dislikes
       } : null);
-      
+
       setUserReaction(response.userReaction || null);
     } catch (error) {
       onAlert?.('error', '좋아요 처리에 실패했습니다.');
@@ -104,36 +109,50 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
     if (!currentSpot) return;
     try {
       const response = await api.spots.dislikeSpot(currentSpot.id);
-      
+
       // 로컬 상태만 업데이트 (전체 재조회 없이)
       setCurrentSpot(prev => prev ? {
         ...prev,
         like_count: response.likes,
         dislike_count: response.dislikes
       } : null);
-      
+
       setUserReaction(response.userReaction || null);
     } catch (error) {
       onAlert?.('error', '싫어요 처리에 실패했습니다.');
     }
   }, [currentSpot, onAlert]);
 
-  const handleDelete = useCallback(async () => {
-    if (!currentSpot || !confirm('정말로 이 장소를 삭제하시겠습니까?')) return;
-    
+  const handleDelete = useCallback(() => {
+    if (!currentSpot) return;
+    setShowConfirm(true);
+  }, [currentSpot]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!currentSpot) return;
+
+    // 1. Confirm 모달과 상세 모달 닫기
+    setShowConfirm(false);
+    onClose();
+
     try {
-      const result = await api.spots.deleteSpot(currentSpot.id);
-      if (result.success) {
-        onAlert?.('success', '장소가 성공적으로 삭제되었습니다.');
-        onSpotDelete?.(currentSpot.id);
-        onClose();
-      } else {
-        onAlert?.('error', result.message || '장소 삭제에 실패했습니다.');
-      }
+      // 2. LoadingContext를 사용한 삭제 처리
+      await withLoading(async () => {
+        const result = await api.spots.deleteSpot(currentSpot.id);
+        if (result.success) {
+          // 3. 지도에서 spot 제거
+          onSpotDelete?.(currentSpot.id);
+          // 4. 성공 알림
+          onAlert?.('success', '장소가 성공적으로 삭제되었습니다.');
+        } else {
+          onAlert?.('error', result.message || '장소 삭제에 실패했습니다.');
+        }
+      }, '장소를 삭제하는 중입니다...');
     } catch (error) {
+      console.error('Delete error:', error);
       onAlert?.('error', '장소 삭제에 실패했습니다.');
     }
-  }, [currentSpot, onAlert, onSpotDelete, onClose]);
+  }, [currentSpot, onAlert, onSpotDelete, onClose, withLoading]);
 
   const handleAddComment = useCallback(async () => {
     if (!currentSpot || !currentUser || !commentInput.trim()) return;
@@ -159,7 +178,7 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         style={{
           position: 'fixed',
           top: 0,
@@ -175,9 +194,9 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
           onClose();
         }}
       />
-      
+
       {/* Popup */}
-      <div 
+      <div
         style={{
           position: 'fixed',
           top: '50%',
@@ -208,19 +227,19 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
           color: 'white'
         }}>
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>장소 상세 정보</h3>
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            style={{ 
-              background: 'rgba(255,255,255,0.2)', 
-              border: 'none', 
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
-              fontSize: '16px', 
-              cursor: 'pointer', 
+              fontSize: '16px',
+              cursor: 'pointer',
               color: 'white',
               display: 'flex',
               alignItems: 'center',
@@ -232,8 +251,8 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{ 
-          padding: '24px', 
+        <div style={{
+          padding: '24px',
           overflowY: 'auto',
           flex: 1
         }}>
@@ -249,21 +268,26 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
             <>
               {/* Title and Delete */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#333', flex: 1 }}>
-                  {currentSpot.name}
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#333' }}>
+                    {currentSpot.name}
+                  </h2>
+                  {currentSpot.is_noise_recorded && (
+                    <VerifiedBadge size="medium" />
+                  )}
+                </div>
                 {canDelete && (
-                  <button 
+                  <button
                     onClick={handleDelete}
-                    style={{ 
-                      background: '#ff4757', 
-                      border: 'none', 
-                      borderRadius: '6px', 
-                      fontSize: '12px', 
-                      cursor: 'pointer', 
-                      color: 'white', 
-                      padding: '6px 12px', 
-                      fontWeight: 500 
+                    style={{
+                      background: '#ff4757',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      color: 'white',
+                      padding: '6px 12px',
+                      fontWeight: 500
                     }}
                   >
                     삭제
@@ -274,31 +298,31 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
               {/* Image */}
               {currentSpot.image_url && (
                 <div style={{ marginBottom: '20px' }}>
-                  <img 
-                    src={currentSpot.image_url} 
-                    alt={currentSpot.name} 
-                    style={{ 
-                      width: '100%', 
-                      height: '220px', 
-                      objectFit: 'cover', 
-                      borderRadius: '12px', 
-                      border: '1px solid #e0e0e0' 
+                  <img
+                    src={currentSpot.image_url}
+                    alt={currentSpot.name}
+                    style={{
+                      width: '100%',
+                      height: '220px',
+                      objectFit: 'cover',
+                      borderRadius: '12px',
+                      border: '1px solid #e0e0e0'
                     }}
                   />
                 </div>
               )}
 
               {/* Stats */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: '12px', 
-                marginBottom: '20px' 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                marginBottom: '20px'
               }}>
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#f8f9fa', 
-                  borderRadius: '10px', 
+                <div style={{
+                  padding: '12px',
+                  background: '#f8f9fa',
+                  borderRadius: '10px',
                   textAlign: 'center',
                   border: '1px solid #e9ecef'
                 }}>
@@ -310,10 +334,10 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                     {currentSpot.is_noise_recorded ? '실측' : '예상'}
                   </div>
                 </div>
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#f8f9fa', 
-                  borderRadius: '10px', 
+                <div style={{
+                  padding: '12px',
+                  background: '#f8f9fa',
+                  borderRadius: '10px',
                   textAlign: 'center',
                   border: '1px solid #e9ecef'
                 }}>
@@ -323,10 +347,10 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                   </div>
                   <div style={{ fontSize: '11px', color: '#6c757d' }}>평점</div>
                 </div>
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#f8f9fa', 
-                  borderRadius: '10px', 
+                <div style={{
+                  padding: '12px',
+                  background: '#f8f9fa',
+                  borderRadius: '10px',
                   textAlign: 'center',
                   border: '1px solid #e9ecef'
                 }}>
@@ -340,17 +364,17 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
 
               {/* Reactions */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                <button 
+                <button
                   onClick={handleLike}
-                  style={{ 
+                  style={{
                     flex: 1,
-                    padding: '12px', 
-                    border: '2px solid #e0e0e0', 
-                    borderRadius: '12px', 
+                    padding: '12px',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '12px',
                     background: userReaction === 'like' ? '#e8f5e9' : 'white',
                     color: userReaction === 'like' ? '#2e7d32' : '#6B7280',
                     borderColor: userReaction === 'like' ? '#4caf50' : '#e0e0e0',
-                    cursor: 'pointer', 
+                    cursor: 'pointer',
                     fontSize: '14px',
                     fontWeight: 600,
                     transition: 'all 0.2s ease'
@@ -358,17 +382,17 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                 >
                   👍 좋아요 ({currentSpot.like_count || 0})
                 </button>
-                <button 
+                <button
                   onClick={handleDislike}
-                  style={{ 
+                  style={{
                     flex: 1,
-                    padding: '12px', 
-                    border: '2px solid #e0e0e0', 
-                    borderRadius: '12px', 
+                    padding: '12px',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '12px',
                     background: userReaction === 'dislike' ? '#ffebee' : 'white',
                     color: userReaction === 'dislike' ? '#d32f2f' : '#6B7280',
                     borderColor: userReaction === 'dislike' ? '#f44336' : '#e0e0e0',
-                    cursor: 'pointer', 
+                    cursor: 'pointer',
                     fontSize: '14px',
                     fontWeight: 600,
                     transition: 'all 0.2s ease'
@@ -379,12 +403,12 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
               </div>
 
               {/* Description */}
-              <div style={{ 
-                padding: '16px', 
-                background: '#f8f9fa', 
-                borderRadius: '12px', 
-                fontSize: '14px', 
-                color: '#555', 
+              <div style={{
+                padding: '16px',
+                background: '#f8f9fa',
+                borderRadius: '12px',
+                fontSize: '14px',
+                color: '#555',
                 marginBottom: '24px',
                 lineHeight: '1.5',
                 border: '1px solid #e9ecef'
@@ -394,10 +418,10 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
 
               {/* Comments Section */}
               <div>
-                <h4 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '18px', 
-                  fontWeight: 600, 
+                <h4 style={{
+                  margin: '0 0 16px 0',
+                  fontSize: '18px',
+                  fontWeight: 600,
                   color: '#333',
                   display: 'flex',
                   alignItems: 'center',
@@ -405,30 +429,30 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                 }}>
                   💬 댓글 ({comments.length})
                 </h4>
-                
+
                 {/* Comment Input */}
                 {currentUser ? (
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ 
-                      fontSize: '13px', 
-                      color: '#666', 
+                    <div style={{
+                      fontSize: '13px',
+                      color: '#666',
                       marginBottom: '8px',
                       fontWeight: 500
                     }}>
                       👤 {currentUser.nickname}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <input 
-                        type="text" 
-                        placeholder="댓글을 입력하세요..." 
+                      <input
+                        type="text"
+                        placeholder="댓글을 입력하세요..."
                         value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-                        style={{ 
-                          flex: 1, 
-                          padding: '12px', 
-                          border: '2px solid #e9ecef', 
-                          borderRadius: '8px', 
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          border: '2px solid #e9ecef',
+                          borderRadius: '8px',
                           fontSize: '14px',
                           outline: 'none',
                           transition: 'border-color 0.2s ease'
@@ -436,16 +460,16 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                         onFocus={(e) => e.target.style.borderColor = '#667eea'}
                         onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                       />
-                      <button 
+                      <button
                         onClick={handleAddComment}
                         disabled={!commentInput.trim()}
-                        style={{ 
-                          padding: '12px 20px', 
-                          border: 'none', 
-                          borderRadius: '8px', 
-                          background: commentInput.trim() ? '#667eea' : '#ccc', 
-                          color: 'white', 
-                          cursor: commentInput.trim() ? 'pointer' : 'not-allowed', 
+                        style={{
+                          padding: '12px 20px',
+                          border: 'none',
+                          borderRadius: '8px',
+                          background: commentInput.trim() ? '#667eea' : '#ccc',
+                          color: 'white',
+                          cursor: commentInput.trim() ? 'pointer' : 'not-allowed',
                           fontSize: '14px',
                           fontWeight: 600,
                           transition: 'background 0.2s ease'
@@ -456,13 +480,13 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div style={{ 
-                    padding: '16px', 
-                    background: '#f8f9fa', 
-                    borderRadius: '8px', 
-                    textAlign: 'center', 
-                    fontSize: '14px', 
-                    color: '#666', 
+                  <div style={{
+                    padding: '16px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    fontSize: '14px',
+                    color: '#666',
                     marginBottom: '16px',
                     border: '1px solid #e9ecef'
                   }}>
@@ -471,16 +495,16 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                 )}
 
                 {/* Comments List */}
-                <div style={{ 
-                  border: '1px solid #e9ecef', 
-                  borderRadius: '12px', 
-                  maxHeight: '300px', 
+                <div style={{
+                  border: '1px solid #e9ecef',
+                  borderRadius: '12px',
+                  maxHeight: '300px',
                   overflowY: 'auto'
                 }}>
                   {comments.length === 0 ? (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      color: '#999', 
+                    <div style={{
+                      textAlign: 'center',
+                      color: '#999',
                       padding: '40px 20px',
                       fontSize: '14px'
                     }}>
@@ -488,34 +512,34 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
                     </div>
                   ) : (
                     comments.map((comment, index) => (
-                      <div key={comment.id} style={{ 
-                        padding: '16px', 
+                      <div key={comment.id} style={{
+                        padding: '16px',
                         borderBottom: index < comments.length - 1 ? '1px solid #f0f0f0' : 'none',
                         wordWrap: 'break-word'
                       }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
-                          marginBottom: '8px' 
+                          marginBottom: '8px'
                         }}>
-                          <span style={{ 
-                            fontWeight: 600, 
-                            fontSize: '14px', 
+                          <span style={{
+                            fontWeight: 600,
+                            fontSize: '14px',
                             color: '#333'
                           }}>
                             {comment.nickname || '익명'}
                           </span>
-                          <span style={{ 
-                            fontSize: '12px', 
+                          <span style={{
+                            fontSize: '12px',
                             color: '#999'
                           }}>
                             {new Date(comment.created_at).toLocaleDateString('ko-KR')}
                           </span>
                         </div>
-                        <div style={{ 
-                          fontSize: '14px', 
-                          color: '#555', 
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#555',
                           lineHeight: '1.4'
                         }}>
                           {comment.content}
@@ -529,6 +553,17 @@ const PlaceDetailPopup: React.FC<PlaceDetailPopupProps> = ({
           )}
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <Confirm
+        isOpen={showConfirm}
+        title="장소 삭제"
+        message="정말로 이 장소를 삭제하시겠습니까? 삭제된 장소는 복구할 수 없습니다."
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowConfirm(false)}
+        confirmText="삭제"
+        cancelText="취소"
+      />
     </>
   );
 };

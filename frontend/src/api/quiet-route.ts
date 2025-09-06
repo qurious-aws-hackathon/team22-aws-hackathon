@@ -29,15 +29,12 @@ export const quietRouteApi = {
     
     try {
       // 1. 기본 카카오 경로 획득 (경유지 포함)
-      console.log('🗺️ 기본 경로 탐색 중...');
       const baseRoute = await kakaoDirectionsApi.getWalkingRoute(start, end, waypoints);
       
       // 2. 경로 주변의 조용함 데이터 수집
-      console.log('🔍 주변 조용함 데이터 수집 중...');
       const quietnessData = await this.collectQuietnessData(baseRoute.points);
       
       // 3. 경로 세그먼트별 조용함 점수 계산
-      console.log('📊 경로 분석 중...');
       const segments = this.analyzeRouteSegments(baseRoute.points, quietnessData);
       
       // 4. 조용함 점수 계산
@@ -45,11 +42,9 @@ export const quietRouteApi = {
       
       // 5. 필요시 대안 경로 탐색 (향후 구현)
       if (quietness_score < 50 && options.preferQuiet) {
-        console.log('🔄 더 조용한 대안 경로 탐색...');
         // TODO: 대안 경로 로직
       }
       
-      console.log(`✅ 경로 분석 완료 - 조용함 점수: ${quietness_score}/100`);
       
       return {
         ...baseRoute,

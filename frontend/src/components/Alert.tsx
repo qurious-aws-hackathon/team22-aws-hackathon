@@ -21,6 +21,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
   if (!isOpen) return null;
 
   const bgColor = type === 'success' ? '#4CAF50' : '#F44336';
+  const icon = type === 'success' ? '✓' : '✕';
 
   if (autoClose) {
     // 화면 하단 토스트 스타일
@@ -44,6 +45,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
         maxWidth: '90vw',
         animation: 'slideUp 0.3s ease-out'
       }}>
+        <span>{icon}</span>
         <span>{message}</span>
         <style>{`
           @keyframes slideUp {

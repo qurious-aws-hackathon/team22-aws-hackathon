@@ -24,7 +24,11 @@ export const spotsClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
-  }
+  },
+  // CORS 관련 설정
+  withCredentials: false,
+  // Preflight 요청 최적화
+  maxRedirects: 0
 });
 
 export const imagesClient = axios.create({

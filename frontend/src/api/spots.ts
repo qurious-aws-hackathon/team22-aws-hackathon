@@ -118,16 +118,39 @@ export const spotsApi = {
 
   async deleteSpot(spotId: string): Promise<{ success: boolean; message: string }> {
     try {
-      await spotsClient.delete(`/spots/${spotId}`);
-      return {
-        success: true,
-        message: '장소가 삭제되었습니다.'
-      };
-    } catch (error) {
+      const response = await spotsClient.delete(`/spots/${spotId}`, {
+        headers: {
+          'x-user-id': getUserId(),
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // 응답 상태 확인
+      if (response.status === 200 || response.status === 204) {
+        return {
+          success: true,
+          message: '장소가 삭제되었습니다.'
+        };
+      } else {
+        return {
+          success: false,
+          message: '장소 삭제에 실패했습니다.'
+        };
+      }
+    } catch (error: any) {
       console.error('Delete Spot API Error:', error);
+      
+      // CORS 에러 또는 네트워크 에러 처리
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
+        return {
+          success: false,
+          message: '네트워크 연결을 확인해주세요.'
+        };
+      }
+      
       return {
         success: false,
-        message: '장소 삭제에 실패했습니다.'
+        message: error.response?.data?.message || '장소 삭제에 실패했습니다.'
       };
     }
   }
