@@ -81,7 +81,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     recommendedRoute: null
   });
   const [nearbyQuietPlaces, setNearbyQuietPlaces] = useState<Spot[]>([]);
-  const [searchRadius, setSearchRadius] = useState<number>(3000); // 기본 3km
+  const searchRadius = 1000; // 1km 고정
 
   useEffect(() => {
     // 거리 계산 함수 테스트
@@ -1408,7 +1408,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               alignItems: 'center',
               gap: '8px'
             }}>
-              🤫 경로 주변 조용한 장소
+              🤫 경로 주변 조용한 장소 (1km 이내)
               <span style={{
                 background: '#4CAF50',
                 color: 'white',
@@ -1419,60 +1419,6 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                 {nearbyQuietPlaces.length}개
               </span>
             </h3>
-          </div>
-          
-          {/* 반경 설정 */}
-          <div style={{
-            marginBottom: '12px',
-            padding: '8px',
-            background: '#F1F8E9',
-            borderRadius: '6px',
-            border: '1px solid #C8E6C9'
-          }}>
-            <label style={{
-              fontSize: '12px',
-              color: '#558B2F',
-              fontWeight: 'bold',
-              display: 'block',
-              marginBottom: '4px'
-            }}>
-              검색 반경: {(searchRadius / 1000).toFixed(1)}km
-            </label>
-            <input
-              type="range"
-              min="500"
-              max="10000"
-              step="500"
-              value={searchRadius}
-              onChange={(e) => {
-                const newRadius = parseInt(e.target.value);
-                setSearchRadius(newRadius);
-                // 반경 변경 시 즉시 재검색
-                if (routeState.recommendedRoute?.points) {
-                  const newNearbyPlaces = findNearbyQuietPlaces(routeState.recommendedRoute.points, places, newRadius);
-                  setNearbyQuietPlaces(newNearbyPlaces);
-                  resetMarkerHighlights();
-                  highlightNearbyPlaces(newNearbyPlaces);
-                }
-              }}
-              style={{
-                width: '100%',
-                height: '4px',
-                background: '#C8E6C9',
-                borderRadius: '2px',
-                outline: 'none'
-              }}
-            />
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '10px',
-              color: '#689F38',
-              marginTop: '2px'
-            }}>
-              <span>0.5km</span>
-              <span>10km</span>
-            </div>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1566,7 +1512,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             color: '#558B2F',
             textAlign: 'center'
           }}>
-            💡 경로에서 설정된 반경 내의 조용한 장소들입니다
+            💡 경로에서 1km 이내의 조용한 장소들입니다
           </div>
         </div>
       )}
