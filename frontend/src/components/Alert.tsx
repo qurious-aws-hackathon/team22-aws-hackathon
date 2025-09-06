@@ -44,7 +44,6 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
         maxWidth: '90vw',
         animation: 'slideUp 0.3s ease-out'
       }}>
-        <span>{icon}</span>
         <span>{message}</span>
         <style>{`
           @keyframes slideUp {
@@ -72,7 +71,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose, autoClose
       backdropFilter: 'blur(4px)'
     }}>
       <div style={{
-        background: type === 'success' 
+        background: type === 'success'
           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
           : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
         padding: '32px',

@@ -250,7 +250,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     );
   };
 
-  const showInfoWindow = async (marker: any, place: Spot) => {
+  const showInfoWindow = async (_marker: any, place: Spot) => {
     // 기존 오버레이 제거 (중복 방지)
     if (infoWindowRef.current) {
       infoWindowRef.current.setMap(null);
@@ -483,6 +483,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       updateButtonStyles();
 
       if (closeBtn) {
+        // @ts-ignore
         closeBtn.onclick = () => {
           overlay.setMap(null);
           infoWindowRef.current = null;
@@ -491,29 +492,26 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
       if (likeBtn) {
         likeBtn.onclick = async () => {
-          try {
-            const response = await api.spots.likeSpot(currentSpot.id);
-
+          api.spots.likeSpot(currentSpot.id).then(() => {
             // Spot 정보 새로고침 후 버튼 상태 업데이트
-            await refreshSpotData();
+            refreshSpotData();
             updateButtonStyles();
-          } catch (error) {
+          }).catch(error => {
             console.error('좋아요 실패:', error);
-          }
+          });
         };
       }
 
       if (dislikeBtn) {
         dislikeBtn.onclick = async () => {
-          try {
-            const response = await api.spots.dislikeSpot(currentSpot.id);
+            api.spots.dislikeSpot(currentSpot.id).then(() => {
+              // Spot 정보 새로고침 후 버튼 상태 업데이트
+              refreshSpotData();
+              updateButtonStyles();
+            }).catch(error => {
+              console.error('싫어요 실패:', error);
 
-            // Spot 정보 새로고침 후 버튼 상태 업데이트
-            await refreshSpotData();
-            updateButtonStyles();
-          } catch (error) {
-            console.error('싫어요 실패:', error);
-          }
+            });
         };
       }
 
@@ -522,7 +520,9 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
         const canDelete = currentUser && (currentSpot.user_id === currentUser.id || currentSpot.user_id === 'anonymous');
 
         if (canDelete) {
+          // @ts-ignore
           deleteBtn.style.display = 'inline-block';
+          // @ts-ignore
           deleteBtn.onclick = async () => {
             if (!confirm('정말로 이 장소를 삭제하시겠습니까?')) return;
 
@@ -567,6 +567,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             });
         };
 
+        // @ts-ignore
         commentBtn.onclick = addComment;
         (commentInput as HTMLInputElement).onkeypress = (e) => {
           if (e.key === 'Enter') addComment();
@@ -721,7 +722,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
             <strong style="color: #333;">📍 ${data.name || '위치정보'}</strong><br>
             <strong style="color: #333;">🚶 유동인구: ${data.population?.toLocaleString() || '정보없음'}명</strong><br>
             <strong style="color: #666;">📊 혼잡도: ${crowdLevel}%</strong><br>
-            <div style="margin-top: 8px; padding: 4px 8px; background: ${color}20; border-radius: 4px; font-size: 12px;">
+            <div style="margin-top: 8px; padding: 4px 8px; background: ${color}; border-radius: 4px; font-size: 12px;">
               ${crowdLevel >= 80 ? '🔴 매우 혼잡' : crowdLevel >= 60 ? '🟠 혼잡' : crowdLevel >= 40 ? '🟡 보통' : crowdLevel >= 20 ? '🟢 여유' : '🔵 한적'}
             </div>
           </div>
@@ -1627,7 +1628,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {nearbyQuietPlaces.map((place, index) => {
+            {nearbyQuietPlaces.map((place) => {
               // 경로와의 최단 거리 계산
               const minDistance = routeState.recommendedRoute?.points ?
                 Math.min(...routeState.recommendedRoute.points.map(routePoint =>

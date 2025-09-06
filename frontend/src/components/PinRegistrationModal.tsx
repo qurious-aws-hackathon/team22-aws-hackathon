@@ -34,7 +34,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
     rating: 5,
     isNoiseRecorded: false
   });
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -48,34 +48,34 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   // 주소 변환
   useEffect(() => {
     if (isOpen) {
-      
+
       // 약간의 지연을 두고 주소 변환 시도
       setTimeout(() => {
         if ((window as any).kakao?.maps?.services) {
           const geocoder = new (window as any).kakao.maps.services.Geocoder();
-          
+
           // coord2Address 메서드 사용 (경도, 위도 순서 주의)
           geocoder.coord2Address(lng, lat, (result: any, status: any) => {
-            
+
             if (status === (window as any).kakao.maps.services.Status.OK && result.length > 0) {
               const addr = result[0];
-              
+
               let addressText = '';
-              
+
               // 도로명 주소 우선
               if (addr.road_address) {
                 addressText = addr.road_address.address_name;
-              } 
+              }
               // 지번 주소 대체
               else if (addr.address) {
                 addressText = addr.address.address_name;
               }
-              
+
               // 상세 주소 정보 추가
               if (addr.road_address && addr.road_address.building_name) {
                 addressText += ` (${addr.road_address.building_name})`;
               }
-              
+
               setAddress(addressText || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             } else {
               setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
@@ -91,20 +91,20 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   const startNoiseMeasurement = async () => {
     try {
       setIsMeasuring(true);
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMediaStream(stream);
-      
+
       const context = new (window.AudioContext || (window as any).webkitAudioContext)();
       setAudioContext(context);
-      
+
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyserRef.current = analyser;
-      
+
       source.connect(analyser);
-      
+
       measureNoise();
     } catch (error) {
       console.error('마이크 접근 실패:', error);
@@ -115,46 +115,46 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
 
   const measureNoise = () => {
     if (!analyserRef.current) return;
-    
+
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
-    
+
     // RMS 계산으로 소음도 측정
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
       sum += dataArray[i] * dataArray[i];
     }
     const rms = Math.sqrt(sum / dataArray.length);
-    
+
     // dB 변환 (대략적인 계산)
     const db = Math.min(80, Math.max(20, 20 + (rms / 255) * 60));
-    
-    setFormData(prev => ({ 
-      ...prev, 
+
+    setFormData(prev => ({
+      ...prev,
       noiseLevel: Math.round(db),
-      isNoiseRecorded: true 
+      isNoiseRecorded: true
     }));
-    
+
     animationRef.current = requestAnimationFrame(measureNoise);
   };
 
   const stopNoiseMeasurement = () => {
     setIsMeasuring(false);
-    
+
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
-    
+
     if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop());
       setMediaStream(null);
     }
-    
+
     if (audioContext) {
       audioContext.close();
       setAudioContext(null);
     }
-    
+
     analyserRef.current = null;
   };
 
@@ -196,7 +196,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     stopNoiseMeasurement();
-    
+
     onSubmit({
       ...formData,
       image_url: uploadedImageUrl || undefined,
@@ -296,9 +296,9 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           </button>
         </div>
 
-        <div style={{ 
-          marginBottom: '1rem', 
-          fontSize: '0.9rem', 
+        <div style={{
+          marginBottom: '1rem',
+          fontSize: '0.9rem',
           color: '#666'
         }}>
           <div style={{
@@ -314,7 +314,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
           >
             📍 {address}
           </div>
-          
+
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -349,8 +349,8 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
             onClick={() => document.getElementById('imageInput')?.click()}
             >
               {imagePreview ? (
-                <img 
-                  src={imagePreview} 
+                <img
+                  src={imagePreview}
                   alt="미리보기"
                   style={{
                     width: '100%',
@@ -479,10 +479,10 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
               min="20"
               max="80"
               value={formData.noiseLevel}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
                 noiseLevel: parseInt(e.target.value),
-                isNoiseRecorded: false 
+                isNoiseRecorded: false
               }))}
               disabled={isMeasuring}
               style={{ width: '100%', opacity: isMeasuring ? 0.5 : 1 }}
@@ -542,7 +542,7 @@ const PinRegistrationModal: React.FC<PinRegistrationModalProps> = ({
             </button>
           </div>
         </form>
-        
+
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
