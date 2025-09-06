@@ -45,7 +45,6 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
                   fill="url(#startGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <path d="M19 16l4-4 4 4-4 4z" fill="#2E7D32"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="bold">출발지</text>
           </svg>
         `;
         break;
@@ -65,7 +64,6 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
                   fill="url(#endGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <rect x="20" y="12" width="8" height="8" fill="#C62828"/>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#C62828" font-weight="bold">도착지</text>
           </svg>
         `;
         break;
@@ -85,7 +83,6 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
                   fill="url(#waypointGradient)" filter="url(#shadow)"/>
             <circle cx="24" cy="16" r="10" fill="white"/>
             <text x="24" y="21" text-anchor="middle" font-size="12" fill="#E65100" font-weight="bold">${waypointNumber || 1}</text>
-            <text x="24" y="52" text-anchor="middle" font-size="10" fill="#E65100" font-weight="bold">경유지</text>
           </svg>
         `;
         break;
@@ -150,12 +147,10 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
     }));
     
     addRouteMarker(lat, lng, 'start');
-    callbacks.onAlert?.('success', '🚀 출발지가 설정되었습니다. 도착지를 선택해주세요.');
-  }, [clearRoute, addRouteMarker, callbacks]);
+  }, [clearRoute, addRouteMarker]);
 
   const setEndPoint = useCallback(async (lat: number, lng: number) => {
     if (!startPointRef.current) {
-      callbacks.onAlert?.('error', '먼저 출발지를 설정해주세요.');
       return;
     }
 
@@ -169,19 +164,17 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
     
     addRouteMarker(lat, lng, 'end');
     await drawQuietRoute(startPointRef.current, endPoint, waypointsRef.current);
-  }, [addRouteMarker, callbacks]);
+  }, [addRouteMarker]);
 
   const addWaypoint = useCallback((lat: number, lng: number) => {
     if (!startPointRef.current) {
-      callbacks.onAlert?.('error', '먼저 출발지를 설정해주세요.');
       return;
     }
 
     const waypoint = { lat, lng };
     waypointsRef.current.push(waypoint);
     addRouteMarker(lat, lng, 'waypoint');
-    callbacks.onAlert?.('success', `📍 경유지 ${waypointsRef.current.length}이 추가되었습니다.`);
-  }, [addRouteMarker, callbacks]);
+  }, [addRouteMarker]);
 
   const calculateDistance = useCallback((point1: LatLng, point2: LatLng): number => {
     const R = 6371e3;
@@ -201,13 +194,19 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
   const findNearbyQuietPlaces = useCallback((routePoints: LatLng[], allPlaces: Spot[], maxDistance: number): Spot[] => {
     if (!routePoints?.length || !allPlaces?.length) return [];
 
+    // 출발지와 도착지만 사용 (경로의 첫 번째와 마지막 점)
+    const startPoint = routePoints[0];
+    const endPoint = routePoints[routePoints.length - 1];
+    
     return allPlaces.filter(place => {
       const placePoint = { lat: place.lat, lng: place.lng };
       if (!placePoint.lat || !placePoint.lng) return false;
 
-      const distances = routePoints.map(routePoint => calculateDistance(routePoint, placePoint));
-      const minDistance = Math.min(...distances);
-      return minDistance <= maxDistance;
+      const distanceFromStart = calculateDistance(startPoint, placePoint);
+      const distanceFromEnd = calculateDistance(endPoint, placePoint);
+      
+      // 출발지 또는 도착지 중 하나라도 maxDistance 이내에 있으면 추천
+      return distanceFromStart <= maxDistance || distanceFromEnd <= maxDistance;
     });
   }, [calculateDistance]);
 
@@ -256,9 +255,9 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
         }
       }));
 
-      callbacks.onAlert?.('success', 
-        `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%`
-      );
+      // callbacks.onAlert?.('success', 
+      //   `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%`
+      // );
 
       return routeData;
 
