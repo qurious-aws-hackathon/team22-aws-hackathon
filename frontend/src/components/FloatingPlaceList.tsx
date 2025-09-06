@@ -57,7 +57,6 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
       <div className="floating-place-list">
         <div className="floating-header">
           <h3>🌟 조용한 장소 추천</h3>
-          <span className="place-count">0곳</span>
         </div>
         <div className="place-items">
           <div style={{ 
@@ -78,7 +77,6 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
     <div className="floating-place-list">
       <div className="floating-header">
         <h3>🌟 조용한 장소 추천</h3>
-        <span className="place-count">{places.length}곳</span>
       </div>
       
       <div className="filter-tabs">
@@ -105,12 +103,12 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           className={`filter-tab ${filter === 'quiet' ? 'active' : ''}`}
           onClick={() => setFilter('quiet')}
         >
-          소음 적은순
+          조용함순
         </button>
       </div>
       
       <div className="place-items">
-        {filteredPlaces.slice(0, 15).map(place => (
+        {filteredPlaces.slice(0, 8).map(place => (
           <div 
             key={place.id} 
             className="floating-place-item"
