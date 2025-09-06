@@ -30,7 +30,7 @@ function App() {
             lng: position.coords.longitude
           });
         },
-        (error) => {
+        () => {
           // 위치 정보를 가져올 수 없음
         }
       );
@@ -53,6 +53,8 @@ function App() {
       const data = await api.spots.getSpots();
       setSpots(data);
       setAppState('ready');
+      // 백그라운드에서 이미지 프리로드
+      preloadImages(data);
     } catch (error) {
       console.error('Failed to load spots:', error);
       setAppState('ready'); // 에러가 있어도 지도는 보여주기
@@ -63,9 +65,30 @@ function App() {
     try {
       const data = await api.spots.getSpots();
       setSpots(data);
+      // 백그라운드에서 이미지 프리로드
+      preloadImages(data);
     } catch (error) {
       console.error('Failed to refresh spots:', error);
     }
+  };
+
+  const preloadImages = (spots: Spot[]) => {
+    // 이미지가 있는 spot들만 필터링
+    const spotsWithImages = spots.filter(spot => spot.image_url);
+
+    spotsWithImages.forEach((spot, index) => {
+      // 순차적으로 로드하여 네트워크 부하 분산
+      setTimeout(() => {
+        const img = new Image();
+        img.onload = () => {
+          // 이미지 로드 완료
+        };
+        img.onerror = () => {
+          console.warn(`❌ 이미지 로드 실패: ${spot.name}`);
+        };
+        img.src = spot.image_url!;
+      }, index * 100); // 100ms 간격으로 순차 로드
+    });
   };
 
   const handleLoginSuccess = () => {
@@ -119,7 +142,7 @@ function App() {
             backgroundSize: '50px 50px',
             animation: 'float 20s ease-in-out infinite'
           }} />
-          
+
           <div style={{ position: 'relative', zIndex: 1 }}>
             {/* 로고 */}
             <div style={{
@@ -134,8 +157,8 @@ function App() {
               }}>
                 🤫
               </div>
-              <h1 style={{ 
-                fontSize: '3.5rem', 
+              <h1 style={{
+                fontSize: '3.5rem',
                 margin: 0,
                 fontWeight: '800',
                 background: 'linear-gradient(45deg, #fff, #f0f0f0)',
@@ -147,9 +170,9 @@ function App() {
                 쉿플레이스
               </h1>
             </div>
-            
-            <p style={{ 
-              fontSize: '1.3rem', 
+
+            <p style={{
+              fontSize: '1.3rem',
               opacity: 0.9,
               marginBottom: '3rem',
               fontWeight: '300',
@@ -157,7 +180,7 @@ function App() {
             }}>
               조용하고 평화로운 장소를 찾아드립니다
             </p>
-            
+
             <button
               onClick={() => setShowLoginModal(true)}
               style={{
@@ -185,7 +208,7 @@ function App() {
               시작하기 →
             </button>
           </div>
-          
+
           <style>{`
             @keyframes bounce {
               0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
@@ -198,8 +221,8 @@ function App() {
             }
           `}</style>
         </div>
-        
-        <LoginModal 
+
+        <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
           onLoginSuccess={handleLoginSuccess}
@@ -217,20 +240,20 @@ function App() {
     <LoadingProvider>
       <div className="app">
         <TopBar spotsCount={spots.length} onLogout={handleLogout} />
-        
+
         <MainLayout>
           <div className="map-wrapper">
-            <Map 
-              places={spots} 
+            <Map
+              places={spots}
               onPlaceClick={handleSpotClick}
               selectedSpot={selectedSpot}
               onSpotsUpdate={refreshSpots}
               onSpotDelete={handleSpotDelete}
             />
           </div>
-          
-          <FloatingPlaceList 
-            places={spots} 
+
+          <FloatingPlaceList
+            places={spots}
             onPlaceClick={handleSpotClick}
             userLocation={userLocation || undefined}
           />

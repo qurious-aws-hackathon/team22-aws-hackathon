@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { type Spot } from '../api';
 import { getScoreColor, getScoreText } from '../utils';
+import VerifiedBadge from './VerifiedBadge';
 
 type FilterType = 'latest' | 'distance' | 'likes' | 'quiet';
 
@@ -112,10 +113,27 @@ const FloatingPlaceList: React.FC<FloatingPlaceListProps> = ({ places, onPlaceCl
           <div 
             key={place.id} 
             className="floating-place-item"
-            onClick={() => onPlaceClick(place)}
+            onClick={() => {
+              // 클릭 애니메이션 효과
+              const element = document.querySelector(`[data-place-id="${place.id}"]`) as HTMLElement;
+              if (element) {
+                element.style.transform = 'scale(0.95)';
+                element.style.transition = 'transform 0.1s ease-out';
+                setTimeout(() => {
+                  element.style.transform = 'scale(1)';
+                }, 100);
+              }
+              onPlaceClick(place);
+            }}
+            data-place-id={place.id}
           >
             <div className="place-info">
-              <div className="place-name">{place.name}</div>
+              <div className="place-name">
+                {place.name}
+                {place.is_noise_recorded && (
+                  <VerifiedBadge size="small" style={{ marginLeft: '8px' }} />
+                )}
+              </div>
               <div className="place-category">{place.category}</div>
               <div className="place-details">
                 <span className="noise-level">🔊 {place.noise_level}dB</span>

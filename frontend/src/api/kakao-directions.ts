@@ -47,7 +47,6 @@ export interface ProcessedRoute {
 export const kakaoDirectionsApi = {
   async getWalkingRoute(start: RoutePoint, end: RoutePoint, waypoints?: RoutePoint[]): Promise<ProcessedRoute> {
     try {
-      console.log('🚶 카카오 모빌리티 API 호출:', start, waypoints ? `→ ${waypoints.length}개 경유지 →` : '→', end);
       
       // 경유지가 있는 경우와 없는 경우 구분
       const requestBody: any = {
@@ -94,7 +93,6 @@ export const kakaoDirectionsApi = {
         if (route.result_code === 0) {
           const points = this.extractRoutePoints(route);
           
-          console.log('✅ 실제 카카오 경로 획득:', points.length, '개 지점');
           
           return {
             points,

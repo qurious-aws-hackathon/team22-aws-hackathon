@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { api, type ChatSession } from '../api';
+import VerifiedBadge from './VerifiedBadge';
 
 interface Message {
   id: string;
@@ -24,6 +25,7 @@ interface Recommendation {
   quietRating: number;
   description: string;
   noiseLevel?: number;
+  is_noise_recorded?: boolean;
 }
 
 const ChatBot: React.FC = () => {
@@ -232,7 +234,12 @@ const ChatBot: React.FC = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span>{index + 1}. {rec.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>{index + 1}. {rec.name}</span>
+                {rec.is_noise_recorded && (
+                  <VerifiedBadge size="small" />
+                )}
+              </div>
               <span style={{ 
                 backgroundColor: '#007bff',
                 color: 'white',

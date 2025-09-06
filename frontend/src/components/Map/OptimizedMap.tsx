@@ -1,19 +1,19 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { Spot, api } from '../api';
-import { useMapInstance } from './Map/hooks/useMapInstance';
-import { useMarkerManager } from './Map/hooks/useMarkerManager';
-import { useRouteManager } from './Map/hooks/useRouteManager';
-import { usePopulationOverlay } from './Map/hooks/usePopulationOverlay';
-import { useContextMenu } from './Map/hooks/useContextMenu';
-import { useLocationManager } from './Map/hooks/useLocationManager';
-import { useMapData } from './Map/hooks/useMapData';
-import PinRegistrationModal from './PinRegistrationModal';
-import Alert from './Alert';
-import PlacePopulation from './Map/PlacePopulation';
-import PlaceDetailPopup from './PlaceDetailPopup';
-import { useLoading } from '../contexts/LoadingContext';
+import { Spot } from '../../api';
+import { useMapInstance } from './hooks/useMapInstance';
+import { useMarkerManager } from './hooks/useMarkerManager';
+import { useOverlayManager } from './hooks/useOverlayManager';
+import { useRouteManager } from './hooks/useRouteManager';
+import { usePopulationOverlay } from './hooks/usePopulationOverlay';
+import { useContextMenu } from './hooks/useContextMenu';
+import { useLocationManager } from './hooks/useLocationManager';
+import { useMapData } from './hooks/useMapData';
+import PinRegistrationModal from '../PinRegistrationModal';
+import Alert from '../Alert';
+import PlacePopulation from './PlacePopulation';
+import { useLoading } from '../../contexts/LoadingContext';
 
-interface MapProps {
+interface OptimizedMapProps {
   places: Spot[];
   onPlaceClick?: (place: Spot) => void;
   selectedSpot?: Spot | null;
@@ -21,20 +21,20 @@ interface MapProps {
   onSpotDelete?: (spotId: string) => void;
 }
 
-const Map: React.FC<MapProps> = React.memo(({
+const OptimizedMap: React.FC<OptimizedMapProps> = React.memo(({
   places,
   onPlaceClick,
   selectedSpot,
   onSpotsUpdate,
   onSpotDelete
 }) => {
+  console.log('🗺️ OptimizedMap 렌더링 - places 수:', places?.length || 0);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const [showCongestion, setShowCongestion] = useState(true);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinModalData, setPinModalData] = useState({ lat: 0, lng: 0 });
   const [nearbyQuietPlaces, setNearbyQuietPlaces] = useState<Spot[]>([]);
-  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [alert, setAlert] = useState<{
     isOpen: boolean;
     type: 'success' | 'error';
@@ -64,7 +64,8 @@ const Map: React.FC<MapProps> = React.memo(({
   // Initialize data management
   const {
     populationData,
-    loadPopulationData
+    loadPopulationData,
+    refreshData
   } = useMapData();
 
   // Alert management
@@ -76,14 +77,26 @@ const Map: React.FC<MapProps> = React.memo(({
     setAlert(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  // Initialize managers with callbacks
+  const overlayCallbacks = useMemo(() => ({
+    onSpotDelete,
+    onAlert: showAlert
+  }), [onSpotDelete, showAlert]);
+
   const routeCallbacks = useMemo(() => ({
     onAlert: showAlert
   }), [showAlert]);
 
   const {
     updateMarkers,
-    highlightMarkers
+    highlightMarkers,
+    getMarkerByPlaceId
   } = useMarkerManager(mapInstance);
+
+  const {
+    showInfoWindow,
+    closeInfoWindow
+  } = useOverlayManager(mapInstance, overlayCallbacks);
 
   const {
     routeState,
@@ -91,7 +104,8 @@ const Map: React.FC<MapProps> = React.memo(({
     setEndPoint,
     addWaypoint,
     clearRoute,
-    findNearbyQuietPlaces
+    findNearbyQuietPlaces,
+    drawQuietRoute
   } = useRouteManager(mapInstance, routeCallbacks);
 
   const {
@@ -127,14 +141,11 @@ const Map: React.FC<MapProps> = React.memo(({
 
   // Optimized marker click handler
   const handleMarkerClick = useCallback((place: Spot) => {
-    // 마커 위치로 이동하고 줌 레벨 3으로 설정
+    showInfoWindow(place);
     panTo(place.lat, place.lng);
     setTimeout(() => setLevel(3), 300);
-
-    setSelectedSpotId(place.id);
-    setIsModalOpen(true);
     onPlaceClick?.(place);
-  }, [panTo, setLevel, onPlaceClick]);
+  }, [showInfoWindow, panTo, setLevel, onPlaceClick]);
 
   // Optimized spot movement
   const moveToSpot = useCallback((spot: Spot) => {
@@ -170,7 +181,7 @@ const Map: React.FC<MapProps> = React.memo(({
       await withLoading(async () => {
         const quietRating = Math.max(10, Math.min(100, 100 - (data.noiseLevel - 20) * 1.5));
         const currentUser = api.auth.getCurrentUser();
-
+        
         const spotData = {
           name: data.name,
           description: data.description,
@@ -190,7 +201,6 @@ const Map: React.FC<MapProps> = React.memo(({
 
       setShowPinModal(false);
       onSpotsUpdate?.();
-      showAlert('success', '새로운 쉿플레이스가 성공적으로 등록되었습니다!');
     } catch (error) {
       console.error('스팟 등록 실패:', error);
       showAlert('error', '스팟 등록에 실패했습니다. 다시 시도해주세요.');
@@ -199,12 +209,11 @@ const Map: React.FC<MapProps> = React.memo(({
 
   // Initialize map
   useEffect(() => {
-    // @ts-ignore
     if (mapRef.current && window.kakao?.maps) {
       initializeMap(mapOptions);
       setTimeout(() => loadPopulationData(), 1000);
     }
-  }, [initializeMap, mapOptions, loadPopulationData, places.length, populationData.length]);
+  }, [initializeMap, mapOptions, loadPopulationData]);
 
   // Update markers when places change
   useEffect(() => {
@@ -223,14 +232,12 @@ const Map: React.FC<MapProps> = React.memo(({
   // Handle selected spot
   useEffect(() => {
     if (selectedSpot && mapInstance) {
-      // 선택된 스팟 위치로 이동하고 줌 레벨 3으로 설정
-      panTo(selectedSpot.lat, selectedSpot.lng);
-      setTimeout(() => setLevel(3), 300);
-
-      setSelectedSpotId(selectedSpot.id);
-      setIsModalOpen(true);
+      const marker = getMarkerByPlaceId(selectedSpot.id);
+      if (marker) {
+        showInfoWindow(selectedSpot);
+      }
     }
-  }, [selectedSpot, mapInstance, panTo, setLevel]);
+  }, [selectedSpot, mapInstance, getMarkerByPlaceId, showInfoWindow]);
 
   // Update nearby places when route changes
   useEffect(() => {
@@ -238,10 +245,10 @@ const Map: React.FC<MapProps> = React.memo(({
       const nearbyPlaces = findNearbyQuietPlaces(
         routeState.recommendedRoute.points,
         places,
-        300
+        100
       );
       setNearbyQuietPlaces(nearbyPlaces);
-
+      
       if (nearbyPlaces.length > 0) {
         highlightMarkers(nearbyPlaces.map(p => p.id));
       }
@@ -367,14 +374,33 @@ const Map: React.FC<MapProps> = React.memo(({
             zIndex: 1000
           }}
         >
-          <h3 style={{
-            margin: '0 0 12px 0',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#2E7D32'
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px'
           }}>
-            🤫 경로 주변 조용한 장소 ({nearbyQuietPlaces.length}개)
-          </h3>
+            <h3 style={{
+              margin: '0',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#2E7D32',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              🤫 경로 주변 조용한 장소
+              <span style={{
+                background: '#4CAF50',
+                color: 'white',
+                borderRadius: '12px',
+                padding: '2px 8px',
+                fontSize: '12px'
+              }}>
+                {nearbyQuietPlaces.length}개
+              </span>
+            </h3>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {nearbyQuietPlaces.map((place) => (
@@ -392,38 +418,45 @@ const Map: React.FC<MapProps> = React.memo(({
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#E8F5E8';
                   e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(76, 175, 80, 0.3)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = '#F1F8E9';
                   e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2E7D32' }}>
+                <div style={{
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  color: '#2E7D32',
+                  marginBottom: '4px'
+                }}>
                   {place.name}
                 </div>
-                <div style={{ fontSize: '12px', color: '#558B2F', marginTop: '4px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#558B2F',
+                  marginBottom: '6px',
+                  lineHeight: '1.3'
+                }}>
                   {place.description}
                 </div>
-                <div style={{ fontSize: '11px', color: '#689F38', marginTop: '4px' }}>
-                  👍 {place.like_count || 0} • 📍 클릭하여 이동
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: '#689F38'
+                }}>
+                  <span>👍 {place.like_count || 0}</span>
+                  <span>📍 클릭하여 이동</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Place Detail Popup - 완전히 독립적인 모달 */}
-      <PlaceDetailPopup
-        spotId={selectedSpotId}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedSpotId(null);
-        }}
-        onSpotDelete={onSpotDelete}
-        onAlert={showAlert}
-      />
 
       {/* Modals and Overlays */}
       <PinRegistrationModal
@@ -460,6 +493,6 @@ const Map: React.FC<MapProps> = React.memo(({
   );
 });
 
-Map.displayName = 'Map';
+OptimizedMap.displayName = 'OptimizedMap';
 
-export default Map;
+export default OptimizedMap;

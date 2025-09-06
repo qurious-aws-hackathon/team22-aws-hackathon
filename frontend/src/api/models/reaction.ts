@@ -1,9 +1,9 @@
-// 실제 DynamoDB SpotLikes 테이블 구조에 맞는 모델
-export interface SpotLike {
+// 실제 DynamoDB SpotReactions 테이블 구조에 맞는 모델
+export interface SpotReaction {
+  id: string; // userId#spotId 형태
+  user_id: string;
   spot_id: string;
-  user_id?: string;
-  session_id?: string;
-  reaction_type: 'like' | 'dislike';
+  type: 'like' | 'dislike';
   created_at: string;
 }
 
@@ -13,4 +13,5 @@ export interface ReactionResponse {
   message: string;
   likes: number;
   dislikes: number;
+  userReaction?: 'like' | 'dislike' | null;
 }
