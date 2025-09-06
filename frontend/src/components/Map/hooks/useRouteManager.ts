@@ -194,19 +194,31 @@ export const useRouteManager = (mapInstance: any, callbacks: RouteCallbacks) => 
   const findNearbyQuietPlaces = useCallback((routePoints: LatLng[], allPlaces: Spot[], maxDistance: number): Spot[] => {
     if (!routePoints?.length || !allPlaces?.length) return [];
 
-    // 출발지와 도착지만 사용 (경로의 첫 번째와 마지막 점)
-    const startPoint = routePoints[0];
-    const endPoint = routePoints[routePoints.length - 1];
+    // 출발지, 도착지, 경유지 포인트들 수집
+    const keyPoints: LatLng[] = [];
+    
+    // 출발지 (첫 번째 점)
+    keyPoints.push(routePoints[0]);
+    
+    // 경유지들 (waypointsRef에서 가져오기)
+    if (waypointsRef.current.length > 0) {
+      keyPoints.push(...waypointsRef.current);
+    }
+    
+    // 도착지 (마지막 점)
+    if (routePoints.length > 1) {
+      keyPoints.push(routePoints[routePoints.length - 1]);
+    }
     
     return allPlaces.filter(place => {
       const placePoint = { lat: place.lat, lng: place.lng };
       if (!placePoint.lat || !placePoint.lng) return false;
 
-      const distanceFromStart = calculateDistance(startPoint, placePoint);
-      const distanceFromEnd = calculateDistance(endPoint, placePoint);
-      
-      // 출발지 또는 도착지 중 하나라도 maxDistance 이내에 있으면 추천
-      return distanceFromStart <= maxDistance || distanceFromEnd <= maxDistance;
+      // 모든 키 포인트(출발지, 경유지들, 도착지) 중 하나라도 maxDistance 이내에 있으면 추천
+      return keyPoints.some(keyPoint => {
+        const distance = calculateDistance(keyPoint, placePoint);
+        return distance <= maxDistance;
+      });
     });
   }, [calculateDistance]);
 
