@@ -1,23 +1,55 @@
-# 🤫 쉿플레이스 - 조용한 장소 찾기 플랫폼
+# Team22 - Qurious: 쉿플레이스 (ShushPlace)
+쉿플레이스는 서울의 조용한 장소를 찾고 공유하는 서버리스 웹 애플리케이션입니다.
 
-서울의 조용한 카페, 도서관, 공원을 찾고 공유하는 서버리스 웹 애플리케이션
+## 어플리케이션 개요
 
-## 🏗️ 아키텍처
+쉿플레이스는 도심 속에서 조용하고 집중할 수 있는 공간을 찾기 어려워하는 사람들을 위한 플랫폼입니다. 사용자들이 직접 발견한 조용한 카페, 도서관, 공원 등을 등록하고 공유할 수 있으며, Amazon Bedrock AI를 활용한 개인화된 장소 추천 서비스를 제공합니다.
 
+**핵심 가치**
+- 🤫 **조용함**: 소음 없는 평화로운 공간 발견
+- 🤝 **공유**: 커뮤니티 기반 정보 공유
+- 🎯 **개인화**: AI 기반 맞춤형 장소 추천
+
+**기술적 특징**
+- 완전 서버리스 아키텍처로 비용 효율성 극대화
+- Amazon Bedrock Claude 3 Haiku를 활용한 지능형 추천 시스템
+- Terraform을 통한 Infrastructure as Code 구현
+
+## 주요 기능
+
+### 1. 스팟 관리 시스템
+- **장소 등록**: 사용자가 발견한 조용한 장소를 사진과 함께 등록
+- **위치 기반 검색**: 현재 위치 주변의 조용한 장소 실시간 검색
+- **카테고리 필터링**: 카페, 도서관, 공원, 스터디룸 등 용도별 분류
+- **상세 정보**: 운영시간, 와이파이, 콘센트 등 편의시설 정보 제공
+
+### 2. 사용자 인터랙션
+- **좋아요/싫어요**: 장소에 대한 평가 시스템
+- **댓글 시스템**: 실시간 후기 및 팁 공유
+- **사용자 상태 확인**: 개인별 좋아요 기록 관리
+- **실시간 업데이트**: 새로운 정보 즉시 반영
+
+### 3. AI 추천 시스템
+- **Amazon Bedrock 연동**: Claude 3 Haiku 모델 활용
+- **개인화 추천**: 사용자 선호도 및 위치 기반 맞춤 추천
+- **상황별 추천**: 시간대, 날씨, 목적에 따른 최적 장소 제안
+- **실시간 점수 계산**: 다양한 요소를 종합한 추천 점수 산출
+
+## 동영상 데모
+
+<!-- 실제 데모 영상으로 교체 예정 -->
+![데모 영상](./docs/demo.gif)
+
+*데모 영상: 쉿플레이스 주요 기능 시연*
+
+## 리소스 배포하기
+
+### 아키텍처 다이어그램
 ```
 사용자 → CloudFront (CDN) → S3 (정적 호스팅) → API Gateway → Lambda → DynamoDB
                                                                     ↓
                                                               Amazon Bedrock (AI)
 ```
-
-### 기술 스택
-- **프론트엔드**: HTML5, CSS3, JavaScript (Vanilla)
-- **인프라**: AWS S3, CloudFront, API Gateway, Lambda, DynamoDB
-- **AI**: Amazon Bedrock (Claude 3 Haiku)
-- **IaC**: Terraform
-- **배포**: AWS CLI
-
-## 🚀 빠른 시작
 
 ### 사전 요구사항
 ```bash
@@ -29,209 +61,76 @@ brew install awscli
 aws configure
 ```
 
-### 배포
+### 배포 방법
+
+#### 1. 자동 배포 (권장)
 ```bash
 # 전체 배포 (인프라 + 프론트엔드)
 ./deploy.sh
+```
 
-# 또는 수동 배포
+#### 2. 수동 배포
+```bash
+# 인프라 배포
 cd terraform
 terraform init
 terraform apply
-```
 
-### 정리
-```bash
-# 모든 리소스 삭제
-./cleanup.sh
-```
-
-## 📁 프로젝트 구조
-
-```
-├── terraform/           # Terraform IaC 코드
-│   ├── main.tf          # 메인 인프라 정의
-│   ├── variables.tf     # 변수 정의
-│   └── outputs.tf       # 출력값 정의
-├── frontend/            # 프론트엔드 코드
-│   └── index.html       # SPA 메인 페이지
-├── docs/               # 문서
-├── deploy.sh           # 배포 스크립트
-├── cleanup.sh          # 정리 스크립트
-└── README.md           # 이 파일
-```
-
-## 🔧 주요 기능
-
-### 1. 스팟 관리
-- 조용한 장소 등록/조회
-- 위치 기반 검색
-- 카테고리별 필터링
-
-### 2. 사용자 인터랙션
-- 좋아요/싫어요 토글
-- 댓글 시스템
-- 사용자 상태 확인
-
-### 3. AI 추천 시스템
-- Amazon Bedrock 기반 장소 추천
-- 위치 및 선호도 기반 분석
-- 실시간 추천 점수 계산
-
-## 🌐 API 엔드포인트
-
-### 기본 URL
-```
-https://xx42krmzqc.execute-api.us-east-1.amazonaws.com/prod
-```
-
-### 주요 엔드포인트
-- `GET /spots` - 스팟 목록 조회
-- `POST /spots` - 새 스팟 등록
-- `GET /spots/{id}` - 스팟 상세 조회
-- `POST /spots/{id}/like` - 좋아요 토글
-- `GET /spots/{id}/like-status` - 좋아요 상태 확인
-- `POST /recommendations` - AI 추천
-
-## 💰 비용 예상
-
-### 월간 예상 비용 (트래픽 10GB 기준)
-- S3 스토리지: $0.02
-- CloudFront: $0.085
-- Lambda: $0.20 (100만 요청)
-- DynamoDB: $0.25 (읽기/쓰기)
-- **총합: ~$0.56/월**
-
-## 🔒 보안 기능
-
-- CloudFront OAC (Origin Access Control)
-- S3 버킷 퍼블릭 액세스 차단
-- HTTPS 강제 리다이렉션
-- CORS 정책 적용
-
-## 📊 모니터링
-
-### CloudWatch 메트릭
-- CloudFront 요청 수
-- Lambda 실행 시간
-- DynamoDB 읽기/쓰기 용량
-- API Gateway 응답 시간
-
-### 로그 확인
-```bash
-# Lambda 로그
-aws logs tail /aws/lambda/getSpots --follow
-
-# CloudFront 액세스 로그 (선택사항)
-aws s3 ls s3://cloudfront-logs-bucket/
-```
-
-## 🛠️ 개발 가이드
-
-### 로컬 개발
-```bash
-# 프론트엔드 로컬 서버
-cd frontend
-python -m http.server 8000
-# 또는
-npx serve .
-```
-
-### 환경별 배포
-```bash
-# 개발 환경
-terraform apply -var="environment=dev"
-
-# 프로덕션 환경
-terraform apply -var="environment=prod"
-```
-
-### 프론트엔드 업데이트
-```bash
-# 파일 변경 후 S3 동기화
+# 프론트엔드 배포
 aws s3 sync frontend/ s3://$(terraform output -raw s3_bucket_name) --delete
-
-# CloudFront 캐시 무효화
 aws cloudfront create-invalidation \
   --distribution-id $(terraform output -raw cloudfront_distribution_id) \
   --paths "/*"
 ```
 
-## 🐛 트러블슈팅
-
-### 일반적인 문제
-
-**1. Terraform 권한 오류**
+### 배포 결과 확인
 ```bash
-# AWS 자격 증명 확인
-aws sts get-caller-identity
+# 배포된 URL 확인
+terraform output cloudfront_domain_name
+
+# API 엔드포인트 확인
+terraform output api_gateway_url
 ```
 
-**2. CloudFront 배포 지연**
-- 배포 완료까지 5-10분 소요
-- 상태 확인: AWS Console → CloudFront
-
-**3. CORS 오류**
-- API Gateway CORS 설정 확인
-- 브라우저 개발자 도구 네트워크 탭 확인
-
-**4. S3 버킷 이름 충돌**
+### 리소스 삭제
 ```bash
-# variables.tf에서 project_name 변경
-terraform apply -var="project_name=your-unique-name"
+# 모든 AWS 리소스 삭제
+./cleanup.sh
+
+# 또는 수동 삭제
+cd terraform
+terraform destroy
 ```
 
-## 📈 성능 최적화
+## 프로젝트 기대 효과 및 예상 사용 사례
 
-### 캐시 전략
-- CloudFront: 정적 자산 24시간 캐시
-- API Gateway: 응답 캐싱 (선택사항)
-- 브라우저: Service Worker 활용
+### 기대 효과
 
-### 이미지 최적화
-```html
-<!-- 레이지 로딩 -->
-<img loading="lazy" src="image.jpg" alt="description">
+#### 1. 사회적 가치
+- **현대인의 스트레스 관리**: 조용한 공간 접근성 향상으로 도시민 스트레스 감소
+- **커뮤니티 활성화**: 지역 기반 정보 공유 문화 조성
+- **공간 활용도 증대**: 숨겨진 조용한 공간들의 재발견 및 활용
 
-<!-- WebP 지원 -->
-<picture>
-  <source srcset="image.webp" type="image/webp">
-  <img src="image.jpg" alt="description">
-</picture>
-```
+#### 2. 기술적 가치
+- **서버리스 아키텍처 모범 사례**: 비용 효율적인 클라우드 네이티브 솔루션 제시
+- **AI 활용 실용 사례**: Amazon Bedrock을 활용한 실생활 문제 해결
+- **Infrastructure as Code**: Terraform을 통한 재현 가능한 인프라 구축
 
-## 🔄 CI/CD 파이프라인 (향후 계획)
+### 예상 사용 사례
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy Frontend
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-      - name: Deploy Infrastructure
-        run: terraform apply -auto-approve
-      - name: Upload Frontend
-        run: aws s3 sync frontend/ s3://$BUCKET_NAME
-```
+#### 1. 개인 사용자
+- **재택근무자**: 집중이 필요한 업무를 위한 조용한 카페 검색
+- **수험생**: 도서관 외 대안 학습 공간 발견
+- **프리랜서**: 미팅이나 작업을 위한 조용한 공간 예약
+- **독서 애호가**: 책 읽기 좋은 조용한 장소 탐색
 
-## 📞 지원
-
-- **이슈 리포트**: GitHub Issues
-- **문서**: `/docs` 디렉토리
-- **API 문서**: `/docs/14-api-specification.md`
-
-## 📄 라이선스
-
-MIT License
+#### 2. 비즈니스 활용
+- **카페 사장**: 조용한 환경을 강점으로 하는 마케팅 채널
+- **도서관**: 이용률 증대 및 서비스 홍보
+- **코워킹 스페이스**: 조용한 업무 환경 어필
+- **관광업**: 현지인만 아는 조용한 명소 소개
 
 ---
 
-**마지막 업데이트**: 2025-09-05  
-**버전**: 1.0.0
+**개발팀**: Team22  
+**개발 기간**: 2025.09.05 ~ 2025.09.06
