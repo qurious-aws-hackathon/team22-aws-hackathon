@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const KAKAO_REST_API_KEY = '9aad82b3e0f110046a739e949ebbd947';
+const KAKAO_REST_API_KEY = '8c1fdb56c5453d5dbdb8631e81eefabf';
 
 interface KakaoDirectionsResponse {
+  trans_id: string;
   routes: Array<{
     result_code: number;
     result_msg: string;
@@ -48,23 +49,24 @@ export const kakaoDirectionsApi = {
     try {
       console.log('🚶 카카오 모빌리티 API 호출:', start, '→', end);
       
-      // 실제 카카오 모빌리티 API 호출
-      const response = await axios.post(
-        'https://apis-navi.kakaomobility.com/v1/directions',
+      // 올바른 카카오 모빌리티 API 호출
+      const response = await axios.post<KakaoDirectionsResponse>(
+        'https://apis-navi.kakaomobility.com/v1/waypoints/directions',
         {
           origin: {
-            x: start.lng,
-            y: start.lat
+            x: start.lng.toString(),
+            y: start.lat.toString()
           },
           destination: {
-            x: end.lng,
-            y: end.lat
+            x: end.lng.toString(),
+            y: end.lat.toString()
           },
           priority: 'RECOMMEND',
           car_fuel: 'GASOLINE',
           car_hipass: false,
           alternatives: false,
-          road_details: false
+          road_details: true,
+          summary: false
         },
         {
           headers: {
@@ -76,16 +78,27 @@ export const kakaoDirectionsApi = {
 
       if (response.data.routes && response.data.routes.length > 0) {
         const route = response.data.routes[0];
-        const points = this.extractRoutePoints(route);
         
-        console.log('✅ 실제 카카오 경로 획득:', points.length, '개 지점');
-        
-        return {
-          points,
-          distance: route.summary.distance,
-          duration: route.summary.duration,
-          roads: route.sections?.[0]?.roads || []
-        };
+        if (route.result_code === 0) {
+          const points = this.extractRoutePoints(route);
+          
+          console.log('✅ 실제 카카오 경로 획득:', points.length, '개 지점');
+          
+          return {
+            points,
+            distance: route.summary.distance,
+            duration: route.summary.duration,
+            roads: route.sections.flatMap(section => 
+              section.roads.map(road => ({
+                name: road.name,
+                distance: road.distance,
+                traffic_state: road.traffic_state
+              }))
+            )
+          };
+        } else {
+          throw new Error(`경로 탐색 실패: ${route.result_msg}`);
+        }
       }
       
       throw new Error('경로를 찾을 수 없습니다');
