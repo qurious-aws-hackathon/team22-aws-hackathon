@@ -962,10 +962,13 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       setRouteState(prev => ({
         ...prev,
         recommendedRoute: {
+          id: `route_${Date.now()}`,
           distance: routeData.distance,
           duration: routeData.duration,
           points: routeData.points,
-          quietness_score: quietnessScore
+          quietness_score: quietnessScore,
+          estimated_time: routeData.duration,
+          congestion_levels: []
         }
       }));
       
@@ -1041,8 +1044,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
     allPlaces.forEach((place, index) => {
       // API 응답에서 lat, lng 필드 사용 (latitude, longitude가 아님)
       const placePoint = { 
-        lat: place.lat || place.latitude, 
-        lng: place.lng || place.longitude 
+        lat: place.lat, 
+        lng: place.lng 
       };
       
       console.log(`장소 ${index + 1}: ${place.name} (${placePoint.lat}, ${placePoint.lng})`);
@@ -1469,8 +1472,8 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
               const minDistance = routeState.recommendedRoute?.points ? 
                 Math.min(...routeState.recommendedRoute.points.map(routePoint => 
                   calculateDistance(routePoint, { 
-                    lat: place.lat || place.latitude, 
-                    lng: place.lng || place.longitude 
+                    lat: place.lat, 
+                    lng: place.lng 
                   })
                 )) : 0;
               
@@ -1537,7 +1540,7 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
                     fontSize: '11px',
                     color: '#689F38'
                   }}>
-                    <span>👍 {place.likes || 0}</span>
+                    <span>👍 {place.like_count || 0}</span>
                     <span>📍 클릭하여 이동</span>
                   </div>
                 </div>
