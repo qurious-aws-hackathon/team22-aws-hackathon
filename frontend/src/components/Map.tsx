@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { type Spot, api } from '../api';
 import { type RouteState, type LatLng } from '../api/models/route';
+import { kakaoDirectionsApi } from '../api/kakao-directions';
+import { quietRouteApi } from '../api/quiet-route';
 import PinRegistrationModal from './PinRegistrationModal';
 import PlaceDetailPanel from './PlaceDetailPanel';
 import Alert from './Alert';
@@ -819,18 +821,34 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
 
   const drawQuietRoute = async (start: LatLng, end: LatLng) => {
     try {
-      console.log('조용한 경로 탐색 중...', start, '→', end);
+      console.log('🤫 조용한 경로 탐색 중...', start, '→', end);
       
-      // 임시로 직선 경로 그리기 (실제로는 Kakao API 호출)
-      const startPosition = new (window as any).kakao.maps.LatLng(start.lat, start.lng);
-      const endPosition = new (window as any).kakao.maps.LatLng(end.lat, end.lng);
+      // 조용한 경로 API로 최적화된 경로 가져오기
+      const routeData = await quietRouteApi.findQuietRoute(start, end, {
+        preferQuiet: true,
+        avoidCrowded: true,
+        maxDetour: 500
+      });
       
-      const linePath = [startPosition, endPosition];
+      console.log('📍 조용한 경로 데이터:', routeData);
       
+      // 경로 좌표들을 카카오맵 LatLng 객체로 변환
+      const linePath = routeData.points.map(point => 
+        new (window as any).kakao.maps.LatLng(point.lat, point.lng)
+      );
+      
+      // 조용함 점수에 따른 색상 결정
+      const quietnessScore = routeData.quietness_score || 0.7;
+      const routeColor = quietnessScore > 0.8 ? '#4CAF50' : // 매우 조용함 - 녹색
+                        quietnessScore > 0.6 ? '#8BC34A' : // 조용함 - 연녹색  
+                        quietnessScore > 0.4 ? '#FFC107' : // 보통 - 노란색
+                        '#FF9800'; // 시끄러움 - 주황색
+      
+      // 폴리라인으로 경로 그리기
       const polyline = new (window as any).kakao.maps.Polyline({
         path: linePath,
-        strokeWeight: 5,
-        strokeColor: '#4CAF50',
+        strokeWeight: 6,
+        strokeColor: routeColor,
         strokeOpacity: 0.8,
         strokeStyle: 'solid'
       });
@@ -838,9 +856,54 @@ const Map: React.FC<MapProps> = ({ places, onPlaceClick, selectedSpot, onSpotsUp
       polyline.setMap(mapInstance.current);
       routePolylineRef.current = polyline;
       
-      console.log('경로 그리기 완료');
+      // 경로 정보 표시
+      const distanceKm = (routeData.distance / 1000).toFixed(1);
+      const durationMin = Math.ceil(routeData.duration / 60);
+      const quietnessPercent = Math.round(quietnessScore * 100);
+      
+      console.log(`✅ 조용한 경로 완료: ${distanceKm}km, 약 ${durationMin}분, 조용함 ${quietnessPercent}%`);
+      
+      // 경로 상태 업데이트
+      setRouteState(prev => ({
+        ...prev,
+        recommendedRoute: {
+          distance: routeData.distance,
+          duration: routeData.duration,
+          points: routeData.points,
+          quietness_score: quietnessScore
+        }
+      }));
+      
+      // 사용자에게 경로 정보 알림
+      showAlert('success', `🤫 조용한 경로 찾기 완료!\n거리: ${distanceKm}km, 시간: ${durationMin}분\n조용함 지수: ${quietnessPercent}%`);
+      
     } catch (error) {
-      console.error('경로 탐색 실패:', error);
+      console.error('❌ 조용한 경로 탐색 실패:', error);
+      
+      // 실패 시 기본 카카오 경로로 폴백
+      try {
+        const fallbackRoute = await kakaoDirectionsApi.getWalkingRoute(start, end);
+        const linePath = fallbackRoute.points.map(point => 
+          new (window as any).kakao.maps.LatLng(point.lat, point.lng)
+        );
+        
+        const polyline = new (window as any).kakao.maps.Polyline({
+          path: linePath,
+          strokeWeight: 4,
+          strokeColor: '#FF9800',
+          strokeOpacity: 0.6,
+          strokeStyle: 'shortdash'
+        });
+        
+        polyline.setMap(mapInstance.current);
+        routePolylineRef.current = polyline;
+        
+        showAlert('error', '조용한 경로를 찾을 수 없어 일반 경로를 표시합니다.');
+        
+      } catch (fallbackError) {
+        console.error('폴백 경로도 실패:', fallbackError);
+        showAlert('error', '경로를 찾을 수 없습니다. 다시 시도해주세요.');
+      }
     }
   };
 
